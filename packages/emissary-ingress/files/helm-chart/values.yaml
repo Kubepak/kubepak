@@ -1,0 +1,42 @@
+packages:
+  emissary-ingress:
+    image:
+      repository:
+      tag:
+    agent:
+      image:
+        repository:
+        tag:
+    hosts: []
+    service:
+      annotations: {}
+      selector: {}
+      type: LoadBalancer
+      httpPort: 8080
+      httpNodePort:
+      httpsPort: 8443
+      httpsNodePort:
+      tcpPorts: []
+      loadBalancerIP:
+      loadBalancerSourceRanges: []
+      externalIPs: []
+      externalTrafficPolicy:
+      sessionAffinity:
+      sessionAffinityConfig:
+    admin:
+      service:
+        create: true
+        annotations: {}
+        selector: {}
+        type: ClusterIP
+        port: 8877
+        nodePort:
+        snapshotPort: 8005
+        loadBalancerIP:
+        loadBalancerSourceRanges: []
+    pod:
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      container:
+        resources: {}

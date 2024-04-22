@@ -1,0 +1,22 @@
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Mapping
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  ambassador_id:
+    - {{ include "common.ingressController.id" (merge (dict "networkPlane" "management") .) }}
+  prefix: /
+  host: {{ include "argo-workflows.ingress.host" (merge (dict "networkPlane" "management") .) }}
+  service: {{ .Release.Name }}-server.{{ .Release.Namespace }}:2746
+  bypass_auth: true
+  # See issue: https://github.com/argoproj/argo-workflows/issues/4804
+  timeout_ms: 300000
+  connect_timeout_ms: 300000
+...

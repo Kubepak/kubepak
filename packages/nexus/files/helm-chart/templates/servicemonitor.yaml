@@ -1,0 +1,30 @@
+{{- if eq (include "common.context.contains" (merge (dict "value" "prometheus-metrics") .)) "true" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+    release: prometheus-stack
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  endpoints:
+    - port: nexus-ui
+      path: /service/metrics/prometheus
+      basicAuth:
+        username:
+          name: {{ .Release.Name }}-servicemonitor
+          key: user
+        password:
+          name: {{ .Release.Name }}-servicemonitor
+          key: password
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Release.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+...
+{{- end }}

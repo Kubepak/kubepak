@@ -1,0 +1,119 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    targetRevision: {{ index .Values "packages" "argo-workflows" "chartVersion" }}
+    chart: argo-workflows
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        - name: singleNamespace
+          value: "true"
+        {{- if index .Values "packages" "argo-workflows" "controller" "image" "registry" }}
+        - name: controller.image.registry
+          value: "{{ index .Values "packages" "argo-workflows" "controller" "image" "registry" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-workflows" "controller" "image" "repository" }}
+        - name: controller.image.repository
+          value: "{{ index .Values "packages" "argo-workflows" "controller" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-workflows" "controller" "image" "tag" }}
+        - name: controller.image.tag
+          value: "{{ index .Values "packages" "argo-workflows" "controller" "image" "tag" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-workflows" "server" "image" "registry" }}
+        - name: server.image.registry
+          value: "{{ index .Values "packages" "argo-workflows" "server" "image" "registry" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-workflows" "server" "image" "repository" }}
+        - name: server.image.repository
+          value: "{{ index .Values "packages" "argo-workflows" "server" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-workflows" "server" "image" "tag" }}
+        - name: server.image.tag
+          value: "{{ index .Values "packages" "argo-workflows" "server" "image" "tag" }}"
+        {{- end }}
+      values: |
+        {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 8 }}
+        controller:
+          name: workflow-controller
+          metricsConfig:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+          serviceMonitor:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            additionalLabels:
+              release: prometheus-stack
+          {{- if index .Values "packages" "argo-workflows" "controller" "pod" "nodeSelector" }}
+          nodeSelector:
+            {{- toYaml (index .Values "packages" "argo-workflows" "controller" "pod" "nodeSelector") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-workflows" "controller" "pod" "tolerations" }}
+          tolerations:
+            {{- toYaml (index .Values "packages" "argo-workflows" "controller" "pod" "tolerations") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-workflows" "controller" "pod" "affinity" }}
+          affinity:
+            {{- toYaml (index .Values "packages" "argo-workflows" "controller" "pod" "affinity") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-workflows" "controller" "pod" "container" "resources" }}
+          resources:
+            {{- toYaml (index .Values "packages" "argo-workflows" "controller" "pod" "container" "resources") | nindent 12 }}
+          {{- end }}
+        server:
+          enabled: true
+          {{- if index .Values "packages" "argo-workflows" "auth" "oidc" "enabled" }}
+          authModes:
+            - sso
+          sso:
+            enabled: true
+            issuer: https://{{ include "argo-cd.ingress.host" (merge (dict "networkPlane" "management") .) }}/api/dex
+            clientId:
+              name: {{ .Release.Name }}-auth-oidc-dex
+              key: client-id
+            clientSecret:
+              name: {{ .Release.Name }}-auth-oidc-dex
+              key: client-secret
+            redirectUrl: https://{{ include "argo-workflows.ingress.host" . }}/oauth2/callback
+            scopes:
+              - groups
+            userInfoPath: /userinfo
+            insecureSkipVerify: {{ index .Values "packages" "argo-workflows" "auth" "oidc" "insecureSkipVerify" }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-workflows" "server" "pod" "nodeSelector" }}
+          nodeSelector:
+            {{- toYaml (index .Values "packages" "argo-workflows" "server" "pod" "nodeSelector") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-workflows" "server" "pod" "tolerations" }}
+          tolerations:
+            {{- toYaml (index .Values "packages" "argo-workflows" "server" "pod" "tolerations") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-workflows" "server" "pod" "affinity" }}
+          affinity:
+            {{- toYaml (index .Values "packages" "argo-workflows" "server" "pod" "affinity") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-workflows" "server" "pod" "container" "resources" }}
+          resources:
+            {{- toYaml (index .Values "packages" "argo-workflows" "server" "pod" "container" "resources") | nindent 12 }}
+          {{- end }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

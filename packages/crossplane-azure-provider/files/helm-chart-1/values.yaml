@@ -1,0 +1,3 @@
+packages:
+  crossplane-azure-provider:
+    credentials_b64:

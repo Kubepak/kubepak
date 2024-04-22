@@ -1,0 +1,78 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    targetRevision: {{ .Values.packages.mysql.chartVersion }}
+    chart: mysql
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if .Values.packages.mysql.image.registry }}
+        - name: image.registry
+          value: "{{ .Values.packages.mysql.image.registry }}"
+        {{- end }}
+        {{- if .Values.packages.mysql.image.repository }}
+        - name: image.repository
+          value: "{{ .Values.packages.mysql.image.repository }}"
+        {{- end }}
+        {{- if .Values.packages.mysql.image.tag }}
+        - name: image.tag
+          value: "{{ .Values.packages.mysql.image.tag }}"
+        {{- end }}
+        - name: auth.rootPassword
+          value: "{{ .Values.packages.mysql.auth.rootPassword }}"
+        {{- if .Values.packages.mysql.primary.maxAllowedPacket }}
+        - name: primary.extraFlags
+          value: "--max_allowed_packet={{ .Values.packages.mysql.primary.maxAllowedPacket }}"
+        {{- end }}
+        - name: primary.persistence.size
+          value: "{{ .Values.packages.mysql.primary.persistence.size }}"
+        {{- if .Values.packages.mysql.primary.maxAllowedPacket }}
+        - name: secondary.extraFlags
+          value: "--max_allowed_packet={{ .Values.packages.mysql.primary.maxAllowedPacket }}"
+        {{- end }}
+        - name: secondary.persistence.size
+          value: "{{ .Values.packages.mysql.secondary.persistence.size }}"
+      values: |
+        global:
+          {{- include "common.registryCredentials.imagePullSecrets" . | nindent 10 }}
+        primary:
+          nodeSelector:
+            {{- toYaml .Values.packages.mysql.primary.pod.nodeSelector | nindent 12 }}
+          tolerations:
+            {{- toYaml .Values.packages.mysql.primary.pod.tolerations | nindent 12 }}
+          affinity:
+            {{- toYaml .Values.packages.mysql.primary.pod.affinity | nindent 12 }}
+          resources:
+            {{- toYaml .Values.packages.mysql.primary.pod.container.resources | nindent 12 }}
+        secondary:
+          nodeSelector:
+            {{- toYaml .Values.packages.mysql.secondary.pod.nodeSelector | nindent 12 }}
+          tolerations:
+            {{- toYaml .Values.packages.mysql.secondary.pod.tolerations | nindent 12 }}
+          affinity:
+            {{- toYaml .Values.packages.mysql.secondary.pod.affinity | nindent 12 }}
+          resources:
+            {{- toYaml .Values.packages.mysql.secondary.pod.container.resources | nindent 12 }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

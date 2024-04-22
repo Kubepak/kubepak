@@ -1,0 +1,29 @@
+{{- if index .Values "packages" "emissary-ingress" "hosts" }}
+  {{- range $host := index .Values "packages" "emissary-ingress" "hosts" }}
+    {{- if $host.tls }}
+      {{- if $host.tls.certManager }}
+        {{- if $host.tls.certManager.enabled }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ $.Chart.Name }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: {{ $.Values.organization }}.{{ $.Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ $.Release.Name }}-{{ $host.name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  secretName: {{ $.Release.Name }}-{{ $host.name }}-tls
+  issuerRef:
+    name: {{ $.Values.environment }}-cert-manager-issuers-{{ $host.tls.certManager.issuerName }}
+    kind: ClusterIssuer
+  dnsNames:
+    - "{{ default (printf "*.%s" (include "common.host.defaultDomain" $)) $host.hostname }}"
+...
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}

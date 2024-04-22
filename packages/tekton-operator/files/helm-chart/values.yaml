@@ -1,0 +1,32 @@
+packages:
+  tekton-operator:
+    dashboard:
+      ingress:
+        host:
+    global:
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+    operator:
+      image:
+        repository:
+        tag:
+      pod:
+        container:
+          resources: {}
+    pruner:
+      image:
+        repository:
+        tag:
+    webhook:
+      image:
+        repository:
+        tag:
+      pod:
+        container:
+          resources: {}
+    webhookProxy:
+      image:
+        repository:
+        tag:

@@ -1,0 +1,10 @@
+.cache
+.git
+.gitignore
+.idea
+doc
+kubepackw.sh
+README.md
+**/charts
+**/Chart.lock
+**/tmpcharts

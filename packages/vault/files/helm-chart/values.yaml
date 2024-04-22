@@ -1,0 +1,18 @@
+packages:
+  vault:
+    image:
+      repository:
+      tag:
+    injector:
+      image:
+        repository:
+        tag:
+    ingress:
+      host:
+    tls:
+      ca:
+        srcFilePath:
+        dstFilePath:
+    seal: {}
+    serviceAccount:
+      annotations: {}

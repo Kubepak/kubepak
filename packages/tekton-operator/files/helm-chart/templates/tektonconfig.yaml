@@ -1,0 +1,71 @@
+---
+apiVersion: operator.tekton.dev/v1alpha1
+kind: TektonConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: config
+spec:
+  addon: {}
+  chain:
+    disabled: false
+    options:
+      disabled: false
+  config: {}
+  dashboard:
+    options:
+      deployments:
+        tekton-dashboard:
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: tekton-dashboard
+                    args:
+                    - --pipelines-namespace={{ regexReplaceAll "^(.*)-operator$" .Release.Namespace "${1}" }}
+                    - --triggers-namespace={{ regexReplaceAll "^(.*)-operator$" .Release.Namespace "${1}" }}
+      disabled: false
+    readonly: true
+  hub:
+    options:
+      disabled: false
+  pipeline:
+    await-sidecar-readiness: true
+    disable-creds-init: false
+    enable-api-fields: beta
+    enable-bundles-resolver: true
+    enable-cluster-resolver: true
+    enable-custom-tasks: true
+    enable-git-resolver: true
+    enable-hub-resolver: true
+    enable-provenance-in-status: true
+    enable-tekton-oci-bundles: false
+    metrics.pipelinerun.duration-type: histogram
+    metrics.pipelinerun.level: pipeline
+    metrics.taskrun.duration-type: histogram
+    metrics.taskrun.level: task
+    options:
+      disabled: false
+    performance:
+      disable-ha: false
+    require-git-ssh-secret-known-hosts: false
+    running-in-environment-with-injected-sidecars: true
+    send-cloudevents-for-runs: false
+    trusted-resources-verification-no-match-policy: ignore
+  platforms:
+    openshift: {}
+  profile: all
+  pruner:
+    disabled: false
+    keep: 100
+    resources:
+    - pipelinerun
+    schedule: 0 8 * * *
+  targetNamespace: {{ regexReplaceAll "^(.*)-operator$" .Release.Namespace "${1}" }}
+  trigger:
+    enable-api-fields: stable
+    options:
+      disabled: false

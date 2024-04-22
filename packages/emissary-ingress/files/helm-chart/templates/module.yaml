@@ -1,0 +1,21 @@
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Module
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: ambassador {{/* NOTE: The module MUST be named 'ambassador', otherwise it will be ignored. */}}
+  namespace: {{ .Release.Namespace }}
+spec:
+  ambassador_id:
+    - {{ include "emissary-ingress.id" . }}
+  config:
+    enable_grpc_web: true
+    enable_grpc_http11_bridge: false
+    use_proxy_proto: false
+    use_remote_address: false
+    x_forwarded_proto_redirect: true
+...

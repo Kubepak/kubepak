@@ -1,0 +1,232 @@
+{{- $dex := index .Values "packages" "argo-workflows" "auth" "oidc" "providers" "dex" }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    targetRevision: {{ index .Values "packages" "argo-cd" "chartVersion" }}
+    chart: argo-cd
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "argocd"
+        {{- if index .Values "packages" "argo-cd" "sshExtraHosts" }}
+        - name: configs.ssh.extraHosts
+          value: |
+            {{- range $sshExtraHost := index .Values "packages" "argo-cd" "sshExtraHosts" }}
+            {{ $sshExtraHost.serverName }} {{ $sshExtraHost.certType }} {{ $sshExtraHost.certInfo }}
+            {{- end }}
+        {{- end }}
+        {{- if index .Values "packages" "argo-cd" "global" "image" "repository" }}
+        - name: global.image.repository
+          value: "{{ index .Values "packages" "argo-cd" "global" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-cd" "global" "image" "tag" }}
+        - name: global.image.tag
+          value: "{{ index .Values "packages" "argo-cd" "global" "image" "tag" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-cd" "dex" "image" "repository" }}
+        - name: dex.image.repository
+          value: "{{ index .Values "packages" "argo-cd" "dex" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-cd" "dex" "image" "tag" }}
+        - name: dex.image.tag
+          value: "{{ index .Values "packages" "argo-cd" "dex" "image" "tag" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-cd" "redis" "image" "repository" }}
+        - name: redis.image.repository
+          value: "{{ index .Values "packages" "argo-cd" "redis" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-cd" "redis" "image" "tag" }}
+        - name: redis.image.tag
+          value: "{{ index .Values "packages" "argo-cd" "redis" "image" "tag" }}"
+        {{- end }}
+        - name: server.extraArgs[0]
+          value: "--insecure"
+      values: |
+        global:
+          {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 10 }}
+          {{- if index .Values "packages" "argo-cd" "global" "pod" "nodeSelector" }}
+          nodeSelector:
+            {{- toYaml (index .Values "packages" "argo-cd" "global" "pod" "nodeSelector") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-cd" "global" "pod" "tolerations" }}
+          tolerations:
+            {{- toYaml (index .Values "packages" "argo-cd" "global" "pod" "tolerations") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-cd" "global" "pod" "affinity" }}
+          affinity:
+            {{- toYaml (index .Values "packages" "argo-cd" "global" "pod" "affinity") | nindent 12 }}
+          {{- end }}
+        configs:
+          cm:
+            admin.enabled: "{{ index .Values "packages" "argo-cd" "admin" "enabled" }}"
+            application.instanceLabelKey: {{ .Values.organization }}/{{ .Release.Name }}
+            {{- if index .Values "packages" "argo-cd" "auth" "oidc" "enabled" }}
+            dex.config: |
+              connectors:
+                {{- range $index, $microsoftConnector := index .Values "packages" "argo-cd" "auth" "oidc" "providers" "microsoft" }}
+                - type: microsoft
+                  id: microsoft-{{ $index }}
+                  name: {{ $microsoftConnector.name }}
+                  config:
+                    tenant: {{ $microsoftConnector.tenant }}
+                    clientID: {{ $microsoftConnector.clientId }}
+                    clientSecret: {{ $microsoftConnector.clientSecret }}
+                    {{- if $microsoftConnector.roles }}
+                      {{- if or $microsoftConnector.roles.adminGroups $microsoftConnector.roles.readonlyGroups }}
+                    groups:
+                      {{- range $microsoftConnector.roles.adminGroups }}
+                      - {{ . }}
+                      {{- end }}
+                      {{- range $microsoftConnector.roles.readonlyGroups }}
+                      - {{ . }}
+                      {{- end }}
+                      {{- end }}
+                    {{- end }}
+                    redirectURI: {{ include "argo-cd.web.externalUrl" $ }}/api/dex/callback
+                {{- end }}
+              {{- if index .Values "packages" "argo-workflows" "auth" "oidc" "enabled" }}
+                {{- if and $dex.clientId $dex.clientSecret }}
+              staticClients:
+                - id: {{ index .Values "packages" "argo-workflows" "auth" "oidc" "providers" "dex" "clientId" }}
+                  name: Argo Workflows
+                  redirectURIs:
+                    - https://{{ include "argo-workflows.ingress.host" (merge (dict "networkPlane" "management") .) }}/oauth2/callback
+                  secretEnv: ARGO_WORKFLOWS_AUTH_OIDC_DEX_CLIENT_SECRET
+                {{- end }}
+              {{- end }}
+            {{- end }}
+            resource.compareoptions: |
+              ignoreAggregatedRoles: true
+            resource.customizations: |
+              admissionregistration.k8s.io/MutatingWebhookConfiguration:
+                ignoreDifferences: |
+                  jsonPointers:
+                    - /webhooks/0/clientConfig/caBundle
+              Service:
+                health.lua: |
+                  hs = {}
+                  hs.status = "Healthy"
+                  return hs
+            url: "{{ include "argo-cd.web.externalUrl" . }}"
+          {{- if index .Values "packages" "argo-cd" "auth" "oidc" "enabled" }}
+            {{- $adminGroups := list }}
+            {{- $readonlyGroups := list }}
+            {{- range $provider := index .Values "packages" "argo-cd" "auth" "oidc" "providers" }}
+              {{- range $instance := $provider }}
+                {{- if $instance.rbac }}
+                  {{- $adminGroups = concat $adminGroups (default list $instance.rbac.adminGroups) | uniq }}
+                  {{- $readonlyGroups = concat $readonlyGroups (default list $instance.rbac.readonlyGroups) | uniq }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+            {{- if or $adminGroups $readonlyGroups }}
+          rbac:
+            policy.csv: |
+              {{- range $adminGroups }}
+              g, {{ . }}, role:admin
+              {{- end }}
+              {{- range $readonlyGroups }}
+              g, {{ . }}, role:readonly
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          secret:
+            argocdServerAdminPassword: $2a$10$wN9oo..R3pRUgD5bFQ/ZEeYSnwh/k92ToxwF9tSTgND9K8OsVD/.q
+        applicationSet:
+          metrics:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            serviceMonitor:
+              enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+              additionalLabels:
+                release: prometheus-stack
+        controller:
+          metrics:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            serviceMonitor:
+              enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+              additionalLabels:
+                release: prometheus-stack
+          resources:
+            {{- toYaml (index .Values "packages" "argo-cd" "applicationController" "pod" "container" "resources") | nindent 12 }}
+        dex:
+          enabled: {{ index .Values "packages" "argo-cd" "auth" "oidc" "enabled" }}
+          {{- if index .Values "packages" "argo-cd" "auth" "oidc" "enabled" }}
+            {{- if index .Values "packages" "argo-workflows" "auth" "oidc" "enabled" }}
+              {{- if and $dex.clientId $dex.clientSecret }}
+          env:
+            - name: ARGO_WORKFLOWS_AUTH_OIDC_DEX_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: argo-workflows-auth-oidc-dex
+                  key: client-secret
+              {{- end }}
+            {{- end }}
+          metrics:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            serviceMonitor:
+              enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+              additionalLabels:
+                release: prometheus-stack
+          resources:
+            {{- toYaml (index .Values "packages" "argo-cd" "dex" "pod" "container" "resources") | nindent 12 }}
+          {{- end }}
+        notifications:
+          metrics:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            serviceMonitor:
+              enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+              additionalLabels:
+                release: prometheus-stack
+          resources:
+            {{- toYaml (index .Values "packages" "argo-cd" "notificationsController" "pod" "container" "resources") | nindent 12 }}
+        redis:
+          metrics:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            serviceMonitor:
+              enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+              additionalLabels:
+                release: prometheus-stack
+            exporter:
+              enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+          resources:
+            {{- toYaml (index .Values "packages" "argo-cd" "redis" "pod" "container" "resources") | nindent 12 }}
+        repoServer:
+          metrics:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            serviceMonitor:
+              enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+              additionalLabels:
+                release: prometheus-stack
+          resources:
+            {{- toYaml (index .Values "packages" "argo-cd" "repoServer" "pod" "container" "resources") | nindent 12 }}
+        server:
+          metrics:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            serviceMonitor:
+              enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+              additionalLabels:
+                release: prometheus-stack
+          resources:
+            {{- toYaml (index .Values "packages" "argo-cd" "server" "pod" "container" "resources") | nindent 12 }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

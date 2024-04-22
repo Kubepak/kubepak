@@ -1,0 +1,83 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://github.com/tektoncd/operator
+    targetRevision: {{ index .Values "packages" "tekton-operator" "chartVersion" }}
+    path: charts/tekton-operator
+    helm:
+      parameters:
+        - name: nameOverride
+          value: "{{ .Release.Name }}"
+        - name: installCRDs
+          value: "false"
+        {{- if index .Values "packages" "tekton-operator" "operator" "image" "repository" }}
+        - name: operator.image.repository
+          value: "{{ index .Values "packages" "tekton-operator" "operator" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "tekton-operator" "operator" "image" "tag" }}
+        - name: operator.image.tag
+          value: "{{ index .Values "packages" "tekton-operator" "operator" "image" "tag" }}"
+        {{- end }}
+        - name: autoInstallComponents
+          value: "false"
+        - name: operator.defaultTargetNamespace
+          value: "{{ regexReplaceAll "^(.*)-operator$" .Release.Namespace "${1}" }}"
+        {{- if index .Values "packages" "tekton-operator" "pruner" "image" "repository" }}
+        - name: pruner.image.repository
+          value: "{{ index .Values "packages" "tekton-operator" "pruner" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "tekton-operator" "pruner" "image" "tag" }}
+        - name: pruner.image.tag
+          value: "{{ index .Values "packages" "tekton-operator" "pruner" "image" "tag" }}"
+        {{- end }}
+        {{- if index .Values "packages" "tekton-operator" "webhook" "image" "repository" }}
+        - name: webhook.image.repository
+          value: "{{ index .Values "packages" "tekton-operator" "webhook" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "tekton-operator" "webhook" "image" "tag" }}
+        - name: webhook.image.tag
+          value: "{{ index .Values "packages" "tekton-operator" "webhook" "image" "tag" }}"
+        {{- end }}
+        {{- if index .Values "packages" "tekton-operator" "webhookProxy" "image" "repository" }}
+        - name: webhookProxy.image.repository
+          value: "{{ index .Values "packages" "tekton-operator" "webhookProxy" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "tekton-operator" "webhookProxy" "image" "tag" }}
+        - name: webhookProxy.image.tag
+          value: "{{ index .Values "packages" "tekton-operator" "webhookProxy" "image" "tag" }}"
+        {{- end }}
+      values: |
+        {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 8 }}
+        operator:
+          resources:
+            {{- toYaml (index .Values "packages" "tekton-operator" "operator" "pod" "container" "resources") | nindent 12 }}
+        webhook:
+          resources:
+            {{- toYaml (index .Values "packages" "tekton-operator" "webhook" "pod" "container" "resources") | nindent 12 }}
+        nodeSelector:
+          {{- toYaml (index .Values "packages" "tekton-operator" "global" "pod" "nodeSelector") | nindent 10 }}
+        tolerations:
+          {{- toYaml (index .Values "packages" "tekton-operator" "global" "pod" "tolerations") | nindent 10 }}
+        affinity:
+          {{- toYaml (index .Values "packages" "tekton-operator" "global" "pod" "affinity") | nindent 10 }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

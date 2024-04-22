@@ -1,0 +1,36 @@
+packages:
+  argo-cd:
+    ingress:
+      host:
+  argo-workflows:
+    ingress:
+      host:
+    auth:
+      oidc:
+        enabled: false
+        insecureSkipVerify: false
+        rbac:
+          adminGroups:
+          readonlyGroups:
+    controller:
+      image:
+        registry:
+        repository:
+        tag:
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+        container:
+          resources: {}
+    server:
+      image:
+        registry:
+        repository:
+        tag:
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+        container:
+          resources: {}

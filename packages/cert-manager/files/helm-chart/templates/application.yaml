@@ -1,0 +1,44 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://charts.jetstack.io
+    targetRevision: {{ index .Values "packages" "cert-manager" "chartVersion" }}
+    chart: cert-manager
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        - name: installCRDs
+          value: "true"
+        {{- if index .Values "packages" "cert-manager" "image" "repository" }}
+        - name: image.repository
+          value: "{{ index .Values "packages" "cert-manager" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "cert-manager" "image" "tag" }}
+        - name: image.tag
+          value: "{{ index .Values "packages" "cert-manager" "image" "tag" }}"
+        {{- end }}
+      values: |
+        global:
+          {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 10 }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

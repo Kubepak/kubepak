@@ -1,0 +1,96 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    targetRevision: {{ index .Values "packages" "prometheus-stack" "chartVersion" }}
+    chart: kube-prometheus-stack
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        - name: crds.enabled
+          value: "false"
+        - name: prometheusOperator.tls.enabled
+          value: "false"
+        - name: grafana.enabled
+          value: "{{ index .Values "packages" "prometheus-stack" "grafana" "enabled" }}"
+        - name: grafana.defaultDashboardsEditable
+          value: "false"
+        - name: grafana.adminPassword
+          value: "admin"
+        - name: grafana.assertNoLeakedSecrets
+          value: "false"
+        - name: grafana.sidecar.dashboards.annotations.grafana_folder
+          value: "default"
+        - name: grafana.sidecar.dashboards.defaultFolderName
+          value: "default"
+        - name: grafana.sidecar.dashboards.folderAnnotation
+          value: "grafana_folder"
+        - name: grafana.sidecar.dashboards.labelValue
+          value: "grafana"
+        - name: grafana.sidecar.dashboards.provider.foldersFromFilesStructure
+          value: "true"
+      values: |
+        global:
+          {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 10 }}
+        grafana:
+          "grafana.ini":
+            server:
+              root_url: {{ include "prometheus-stack.grafana.web.externalUrl" . }}
+            {{- if index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "enabled" }}
+            auth.basic:
+              enabled: false
+              disable_login_form: true
+              {{- if not (empty (index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "microsoft")) }}
+            auth.azuread:
+              enabled: true
+              name: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "microsoft" "name" }}
+              allow_sign_up: true
+              allow_assign_grafana_admin: true
+              auth_url: https://login.microsoftonline.com/{{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "microsoft" "tenant" }}/oauth2/v2.0/authorize
+              token_url: https://login.microsoftonline.com/{{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "microsoft" "tenant" }}/oauth2/v2.0/token
+              client_id: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "microsoft" "clientId" }}
+              client_secret: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "microsoft" "clientSecret" }}
+              scopes: email openid profile
+              allowed_organizations: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "microsoft" "tenant" }}
+              {{- end }}
+              {{- if not (empty (index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "generic")) }}
+            auth.oidc:
+              enabled: true
+              name: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "generic" "name" }}
+              auto_login: false
+              allow_sign_up: true
+              allow_assign_grafana_admin: true
+              api_url: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "generic" "apiUrl" }}
+              auth_url: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "generic" "authUrl" }}
+              token_url: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "generic" "tokenUrl" }}
+              client_id: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "generic" "clientId" }}
+              client_secret: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "generic" "clientSecret" }}
+              scopes: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "generic" "scopes" }}
+              role_attribute_path: {{ index .Values "packages" "prometheus-stack" "grafana" "auth" "oidc" "providers" "generic" "roleAttributePath" }}
+              role_attribute_strict: true
+              {{- end }}
+            {{- end }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+...

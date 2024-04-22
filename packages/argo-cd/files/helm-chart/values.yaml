@@ -1,0 +1,61 @@
+packages:
+  argo-cd:
+    ingress:
+      host:
+    web:
+      externalUrl:
+    privateRepositories: []
+    sshExtraHosts: []
+    auth:
+      oidc:
+        enabled: false
+        providers:
+          microsoft: []
+    global:
+      image:
+        repository:
+        tag:
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+    applicationController:
+      pod:
+        container:
+          resources: {}
+    dex:
+      image:
+        repository:
+        tag:
+      pod:
+        container:
+          resources: {}
+    notificationsController:
+      pod:
+        container:
+          resources: {}
+    redis:
+      image:
+        repository:
+        tag:
+      pod:
+        container:
+          resources: {}
+    repoServer:
+      pod:
+        container:
+          resources: {}
+    server:
+      pod:
+        container:
+          resources: {}
+  argo-workflows:
+    ingress:
+      host:
+    auth:
+      oidc:
+        enabled: false
+        providers:
+          dex:
+            clientId:
+            clientSecret:

@@ -1,0 +1,4 @@
+packages:
+  cert-manager-issuers:
+    issuers:
+      acme: []

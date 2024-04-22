@@ -1,0 +1,23 @@
+packages:
+  argo-events:
+    ingress:
+      host:
+    global:
+      image:
+        repository:
+        tag:
+    controller:
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+        container:
+          resources: {}
+    webhook:
+      enabled: false
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+        container:
+          resources: {}

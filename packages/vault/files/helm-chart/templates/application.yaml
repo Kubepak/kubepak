@@ -1,0 +1,85 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://helm.releases.hashicorp.com
+    targetRevision: {{ .Values.packages.vault.chartVersion }}
+    chart: vault
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if .Values.packages.vault.image.repository }}
+        - name: injector.agentImage.repository
+          value: "{{ .Values.packages.vault.image.repository }}"
+        - name: server.image.repository
+          value: "{{ .Values.packages.vault.image.repository }}"
+        {{- end }}
+        {{- if .Values.packages.vault.image.tag }}
+        - name: injector.agentImage.tag
+          value: "{{ .Values.packages.vault.image.tag }}"
+        - name: server.image.tag
+          value: "{{ .Values.packages.vault.image.tag }}"
+        {{- end }}
+        {{- if .Values.packages.vault.injector.image.repository }}
+        - name: injector.image.repository
+          value: "{{ .Values.packages.vault.injector.image.repository }}"
+        {{- end }}
+        {{- if .Values.packages.vault.injector.image.tag }}
+        - name: injector.image.tag
+          value: "{{ .Values.packages.vault.injector.image.tag }}"
+        {{- end }}
+      values: |
+        {{- include "common.registryCredentials.imagePullSecrets" . | nindent 8 }}
+        server:
+          serviceAccount:
+            annotations:
+              {{- toYaml .Values.packages.vault.serviceAccount.annotations | nindent 14 }}
+          standalone:
+            config: |
+              ui = true
+              listener "tcp" {
+                tls_disable = "true"
+                address = "[::]:8200"
+                cluster_address = "[::]:8201"
+              }
+              storage "file" {
+                path = "/vault/data"
+              }
+              {{- range $sealMechanism, $sealConfig := .Values.packages.vault.seal }}
+              seal "{{ $sealMechanism }}" {
+                {{- range $key, $value := $sealConfig }}
+                {{ $key }} = "{{ $value }}"
+                {{- end }}
+              }
+              {{- end }}
+          {{- if .Values.packages.vault.tls.ca.srcFilePath }}
+          volumes:
+            - name: ca-certificates
+              configMap:
+                name: {{ .Release.Name }}-ca-certificates
+          volumeMounts:
+            - name: ca-certificates
+              readOnly: true
+              mountPath: {{ .Values.packages.vault.tls.ca.dstFilePath | dir }}
+          {{- end }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false
+...

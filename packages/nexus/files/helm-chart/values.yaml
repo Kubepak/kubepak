@@ -1,0 +1,35 @@
+packages:
+  nexus:
+    cluster:
+      enabled: true
+    ingress:
+      host:
+    auth:
+      saml:
+        enabled: false
+    repositories:
+      config:
+        path:
+    global:
+      image:
+        repository:
+        tag:
+    server:
+      image:
+        repository:
+        tag:
+      pod:
+        container:
+          resources: {}
+    auditLogger:
+      pod:
+        container:
+          resources: {}
+    requestLogger:
+      pod:
+        container:
+          resources: {}
+    taskLogger:
+      pod:
+        container:
+          resources: {}

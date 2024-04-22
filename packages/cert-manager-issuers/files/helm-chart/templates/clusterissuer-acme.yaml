@@ -1,0 +1,47 @@
+{{- range $acmeIssuer := index .Values "packages" "cert-manager-issuers" "issuers" "acme" }}
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ $.Chart.Name }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: {{ $.Values.organization }}.{{ $.Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ $.Release.Name }}-{{ $acmeIssuer.name }}
+spec:
+  acme:
+    email: {{ $acmeIssuer.email }}
+    server: {{ default "https://acme-staging-v02.api.letsencrypt.org/directory" $acmeIssuer.server }}
+    privateKeySecretRef:
+      name: {{ $.Release.Name }}-{{ $acmeIssuer.name }}
+    solvers:
+    {{- range $solverIndex, $solverDns01 := $acmeIssuer.solvers.dns01 }}
+    - dns01:
+        {{- if eq $solverDns01.provider "route53" }}
+        route53:
+          region: {{ $solverDns01.route53.awsRegion }}
+          accessKeyID: {{ $solverDns01.route53.accessKeyId }}
+          secretAccessKeySecretRef:
+            name: {{ $.Release.Name }}-{{ $acmeIssuer.name }}-{{ $solverIndex }}
+            key: secret-access-key
+        {{- end }}
+        {{- if eq $solverDns01.provider "rfc2136" }}
+        rfc2136:
+          nameserver: {{ $solverDns01.rfc2136.nameserver }}
+          tsigKeyName: {{ $solverDns01.rfc2136.tsigKeyName }}
+          tsigAlgorithm: {{ $solverDns01.rfc2136.tsigKeyAlgorithm }}
+          tsigSecretSecretRef:
+            name: {{ $.Release.Name }}-{{ $acmeIssuer.name }}-{{ $solverIndex }}
+            key: tsig-secret
+        {{- end }}
+      selector:
+        {{- if $solverDns01.dnsZones }}
+        dnsZones:
+          {{- range $dnsZone := $solverDns01.dnsZones }}
+          - "{{ $dnsZone }}"
+          {{- end }}
+        {{- end }}
+    {{- end }}
+...
+{{- end }}

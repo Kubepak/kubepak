@@ -1,0 +1,27 @@
+packages:
+  mongodb:
+    image:
+      registry:
+      repository:
+      tag:
+    auth:
+      rootPassword: root
+    persistence:
+      size: 8Gi
+    tls:
+      enabled: false
+      caCert_b64:
+      caKey_b64:
+    pod:
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      container:
+        resources: {}
+    arbiter:
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+        container:
+          resources: {}

@@ -1,0 +1,18 @@
+packages:
+  crossplane:
+    image:
+      repository:
+      tag:
+    pod:
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      container:
+        resources: {}
+    rbacManager:
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+        container:
+          resources: {}

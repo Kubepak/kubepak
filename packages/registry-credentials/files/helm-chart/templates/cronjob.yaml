@@ -1,0 +1,38 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: default
+spec:
+  schedule: "{{ index .Values "packages" "registry-credentials" "cronjobs" "ecr" "schedule" }}"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ .Release.Name }}
+          containers:
+            - name: registry-creds-ecr-refresh
+              image: kubepak/awscli_kubectl:v0.1.0
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - secretRef:
+                    name: {{ $.Release.Name }}
+              command:
+                - /bin/sh
+                - -c
+                - |-
+                {{- range $index, $ecr := index .Values "packages" "registry-credentials" "registries" "ecr" }}
+                  __ecr_password="$(AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID_{{ $index }}}" AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY_{{ $index }}}" aws ecr get-login-password --region "{{ $ecr.awsRegion }}")"
+                  for __namespace in {{ join " " (index $.Values "packages" "registry-credentials" "namespaces") }}; do
+                    kubectl delete secret --ignore-not-found -n "${__namespace}" "registry-creds-ecr-{{ $index }}"
+                    kubectl create secret docker-registry -n "${__namespace}" "registry-creds-ecr-{{ $index }}" --docker-server="https://{{ $ecr.awsAccount }}.dkr.ecr.{{ $ecr.awsRegion }}.amazonaws.com" --docker-username="AWS" --docker-password="${__ecr_password}"
+                  done
+                {{- end }}
+          restartPolicy: Never
+...

@@ -1,0 +1,83 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    targetRevision: {{ index .Values "packages" "argo-events" "chartVersion" }}
+    chart: argo-events
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if index .Values "packages" "argo-events" "global" "image" "repository" }}
+        - name: global.image.repository
+          value: "{{ index .Values "packages" "argo-events" "global" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "argo-events" "global" "image" "tag" }}
+        - name: global.image.tag
+          value: "{{ index .Values "packages" "argo-events" "global" "image" "tag" }}"
+        {{- end }}
+      values: |
+        global:
+          {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 10 }}
+        controller:
+          metrics:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            serviceMonitor:
+              enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+              additionalLabels:
+                release: prometheus-stack
+          {{- if index .Values "packages" "argo-events" "controller" "pod" "nodeSelector" }}
+          nodeSelector:
+            {{- toYaml (index .Values "packages" "argo-events" "controller" "pod" "nodeSelector") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-events" "controller" "pod" "tolerations" }}
+          tolerations:
+            {{- toYaml (index .Values "packages" "argo-events" "controller" "pod" "tolerations") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-events" "controller" "pod" "affinity" }}
+          affinity:
+            {{- toYaml (index .Values "packages" "argo-events" "controller" "pod" "affinity") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-events" "controller" "pod" "container" "resources" }}
+          resources:
+            {{- toYaml (index .Values "packages" "argo-events" "controller" "pod" "container" "resources") | nindent 12 }}
+          {{- end }}
+        webhook:
+          enabled: {{ index .Values "packages" "argo-events" "webhook" "enabled" }}
+          {{- if index .Values "packages" "argo-events" "webhook" "pod" "nodeSelector" }}
+          nodeSelector:
+            {{- toYaml (index .Values "packages" "argo-events" "webhook" "pod" "nodeSelector") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-events" "webhook" "pod" "tolerations" }}
+          tolerations:
+            {{- toYaml (index .Values "packages" "argo-events" "webhook" "pod" "tolerations") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-events" "webhook" "pod" "affinity" }}
+          affinity:
+            {{- toYaml (index .Values "packages" "argo-events" "webhook" "pod" "affinity") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "argo-events" "webhook" "pod" "container" "resources" }}
+          resources:
+            {{- toYaml (index .Values "packages" "argo-events" "webhook" "pod" "container" "resources") | nindent 12 }}
+          {{- end }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

@@ -1,0 +1,177 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://app.getambassador.io
+    targetRevision: {{ index .Values "packages" "emissary-ingress" "chartVersion" }}
+    chart: emissary-ingress
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        - name: createDefaultListeners
+          value: "true"
+        - name: env.AMBASSADOR_ID
+          value: "{{ include "emissary-ingress.id" . }}"
+        {{- if index .Values "packages" "emissary-ingress" "image" "repository" }}
+        - name: image.repository
+          value: "{{ index .Values "packages" "emissary-ingress" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "emissary-ingress" "image" "tag" }}
+        - name: image.tag
+          value: "{{ index .Values "packages" "emissary-ingress" "image" "tag" }}"
+        {{- end }}
+        {{- if index .Values "packages" "emissary-ingress" "agent" "image" "repository" }}
+        - name: agent.image.repository
+          value: "{{ index .Values "packages" "emissary-ingress" "agent" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "emissary-ingress" "agent" "image" "tag" }}
+        - name: agent.image.tag
+          value: "{{ index .Values "packages" "emissary-ingress" "agent" "image" "tag" }}"
+        {{- end }}
+        - name: ingressClassResource.name
+          value: "{{ .Release.Name }}"
+        - name: service.type
+          value: "{{ index .Values "packages" "emissary-ingress" "service" "type" }}"
+        - name: service.ports[0].name
+          value: "http"
+        - name: service.ports[0].port
+          value: "{{ index .Values "packages" "emissary-ingress" "service" "httpPort" }}"
+        - name: service.ports[0].targetPort
+          value: "8080"
+        {{- if eq (index .Values "packages" "emissary-ingress" "service" "type") "NodePort" }}
+        - name: service.ports[0].nodePort
+          value: "{{ index .Values "packages" "emissary-ingress" "service" "httpNodePort" }}"
+        {{- end }}
+        - name: service.ports[0].protocol
+          value: "TCP"
+        - name: service.ports[1].name
+          value: "https"
+        - name: service.ports[1].port
+          value: "{{ index .Values "packages" "emissary-ingress" "service" "httpsPort" }}"
+        - name: service.ports[1].targetPort
+          value: "8443"
+        {{- if eq (index .Values "packages" "emissary-ingress" "service" "type") "NodePort" }}
+        - name: service.ports[1].nodePort
+          value: "{{ index .Values "packages" "emissary-ingress" "service" "httpsNodePort" }}"
+        {{- end }}
+        - name: service.ports[1].protocol
+          value: "TCP"
+        {{- range $index, $tcpPort := index .Values "packages" "emissary-ingress" "service" "tcpPorts" }}
+        - name: service.ports[{{ add $index 2 }}].name
+          value: "tcp-port-{{ $index }}"
+        - name: service.ports[{{ add $index 2 }}].port
+          value: "{{ $tcpPort.port }}"
+        - name: service.ports[{{ add $index 2 }}].targetPort
+          value: "{{ $tcpPort.port }}"
+          {{- if eq (index $.Values "packages" "emissary-ingress" "service" "type") "NodePort" }}
+        - name: service.ports[{{ add $index 2 }}].nodePort
+          value: "{{ $tcpPort.nodePort }}"
+          {{- end }}
+        - name: service.ports[{{ add $index 2 }}].protocol
+          value: "TCP"
+        {{- end }}
+        {{- if eq (index .Values "packages" "emissary-ingress" "service" "type") "LoadBalancer" }}
+        - name: service.loadBalancerIP
+          value: "{{ index .Values "packages" "emissary-ingress" "service" "loadBalancerIP" }}"
+          {{- range $index, $sourceRange := index .Values "packages" "emissary-ingress" "service" "loadBalancerSourceRanges" }}
+        - name: service.loadBalancerSourceRanges[{{ $index }}]
+          value: "{{ $sourceRange }}"
+          {{- end }}
+        {{- end }}
+        {{- range $index, $externalIP := index .Values "packages" "emissary-ingress" "service" "externalIPs" }}
+        - name: service.externalIPs[{{ $index }}]
+          value: "{{ $externalIP }}"
+        {{- end }}
+        {{- if index .Values "packages" "emissary-ingress" "service" "externalTrafficPolicy" }}
+        - name: service.externalTrafficPolicy
+          value: "{{ index .Values "packages" "emissary-ingress" "service" "externalTrafficPolicy" }}"
+        {{- end }}
+        {{- if index .Values "packages" "emissary-ingress" "service" "sessionAffinity" }}
+        - name: service.sessionAffinity
+          value: "{{ index .Values "packages" "emissary-ingress" "service" "sessionAffinity" }}"
+        {{- end }}
+        {{- if index .Values "packages" "emissary-ingress" "service" "sessionAffinityConfig" }}
+        - name: service.sessionAffinityConfig
+          value: "{{ index .Values "packages" "emissary-ingress" "service" "sessionAffinityConfig" }}"
+        {{- end }}
+        - name: adminService.create
+          value: "{{ index .Values "packages" "emissary-ingress" "admin" "service" "create" }}"
+        - name: adminService.type
+          value: "{{ index .Values "packages" "emissary-ingress" "admin" "service" "type" }}"
+        - name: adminService.port
+          value: "{{ index .Values "packages" "emissary-ingress" "admin" "service" "port" }}"
+        {{- if eq (index .Values "packages" "emissary-ingress" "admin" "service" "type") "NodePort" }}
+        - name: adminService.nodePort
+          value: "{{ index .Values "packages" "emissary-ingress" "admin" "service" "nodePort" }}"
+        {{- end }}
+        - name: adminService.snapshotPort
+          value: "{{ index .Values "packages" "emissary-ingress" "admin" "service" "snapshotPort" }}"
+        {{- if eq (index .Values "packages" "emissary-ingress" "admin" "service" "type") "LoadBalancer" }}
+        - name: adminService.loadBalancerIP
+          value: "{{ index .Values "packages" "emissary-ingress" "admin" "service" "loadBalancerIP" }}"
+          {{- range $index, $sourceRange := index .Values "packages" "emissary-ingress" "admin" "service" "loadBalancerSourceRanges" }}
+        - name: adminService.loadBalancerSourceRanges[{{ $index }}]
+          value: "{{ $sourceRange }}"
+          {{- end }}
+        {{- end }}
+      values: |
+        metrics:
+          serviceMonitor:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            selector:
+              release: prometheus-stack
+        {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 8 }}
+        {{- with index .Values "packages" "emissary-ingress" "service" "annotations" }}
+        service:
+          annotations:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with index .Values "packages" "emissary-ingress" "service" "selector" }}
+        service:
+          selector:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with index .Values "packages" "emissary-ingress" "admin" "service" "annotations" }}
+        adminService:
+          annotations:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+        {{- with index .Values "packages" "emissary-ingress" "admin" "service" "selector" }}
+        adminService:
+          selector:
+            {{- toYaml . | nindent 12 }}
+        {{- end }}
+        nodeSelector:
+          {{- toYaml (index .Values "packages" "emissary-ingress" "pod" "nodeSelector") | nindent 10 }}
+        tolerations:
+          {{- toYaml (index .Values "packages" "emissary-ingress" "pod" "tolerations") | nindent 10 }}
+        affinity:
+          {{- toYaml (index .Values "packages" "emissary-ingress" "pod" "affinity") | nindent 10 }}
+        resources:
+          {{- toYaml (index .Values "packages" "emissary-ingress" "pod" "container" "resources") | nindent 10 }}
+  ignoreDifferences:
+    - group: "*"
+      kind: ClusterRole
+      jsonPointers:
+        - /rules
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

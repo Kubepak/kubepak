@@ -1,0 +1,23 @@
+packages:
+  postgresql:
+    image:
+      registry:
+      repository:
+      tag:
+    auth:
+      postgresPassword: postgres
+    persistence:
+      size: 8Gi
+    tls:
+      enabled: false
+      cert_b4:
+      key_b4:
+      ca_b64:
+    primary:
+      extendedConfigmap:
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+        container:
+          resources: {}

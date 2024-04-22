@@ -1,0 +1,8 @@
+packages:
+  registry-credentials:
+    cronjobs:
+      ecr:
+        schedule: "0 */1 * * *"
+    registries:
+      dpr: []
+      ecr: []

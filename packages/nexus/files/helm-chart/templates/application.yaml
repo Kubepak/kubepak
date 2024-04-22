@@ -1,0 +1,97 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://github.com/sonatype/nxrm3-ha-repository
+    targetRevision: {{ .Values.packages.nexus.chartVersion }}
+    path: nxrm-ha
+    helm:
+      parameters:
+        - name: nameOverride
+          value: "{{ .Release.Name }}"
+        - name: statefulset.clustered
+          value: "{{ .Values.packages.nexus.cluster.enabled }}"
+        {{- if .Values.packages.nexus.server.image.repository }}
+        - name: statefulset.container.image.repository
+          value: "{{ .Values.packages.nexus.server.image.repository }}"
+        {{- end }}
+        {{- if .Values.packages.nexus.server.image.tag }}
+        - name: statefulset.container.image.nexusTag
+          value: "{{ .Values.packages.nexus.server.image.tag }}"
+        {{- end }}
+        {{- if and .Values.packages.nexus.global.image.repository .Values.packages.nexus.global.image.tag }}
+        - name: statefulset.initContainers[0].image
+          value: "{{ .Values.packages.nexus.global.image.repository }}:{{ .Values.packages.nexus.global.image.tag }}"
+        - name: statefulset.container.env.nexusDBPort
+          value: "{{ index .Values "packages" "nexus-database" "metadata" "port" }}"
+        - name: statefulset.auditLogContainer.image.repository
+          value: "{{ .Values.packages.nexus.global.image.repository }}"
+        - name: statefulset.auditLogContainer.image.nexusTag
+          value: "{{ .Values.packages.nexus.global.image.tag }}"
+        - name: statefulset.requestLogContainer.image.repository
+          value: "{{ .Values.packages.nexus.global.image.repository }}"
+        - name: statefulset.requestLogContainer.image.nexusTag
+          value: "{{ .Values.packages.nexus.global.image.tag }}"
+        - name: statefulset.taskLogContainer.image.repository
+          value: "{{ .Values.packages.nexus.global.image.repository }}"
+        - name: statefulset.taskLogContainer.image.nexusTag
+          value: "{{ .Values.packages.nexus.global.image.tag }}"
+        {{- end }}
+        - name: namespaces.nexusNs.enabled
+          value: "true"
+        - name: namespaces.nexusNs.name
+          value: "{{ .Release.Namespace }}"
+        - name: service.nexus.enabled
+          value: "true"
+        - name: service.nexus.type
+          value: "ClusterIP"
+        - name: secret.dbSecret.enabled
+          value: "true"
+        - name: secret.db.host
+          value: "{{ index .Values "packages" "nexus-database" "metadata" "host" }}"
+        - name: secret.db.user
+          value: "{{ .Values.packages.nexus.database.username }}"
+        - name: secret.db.password
+          value: "{{ .Values.packages.nexus.database.password }}"
+        - name: secret.nexusAdminSecret.enabled
+          value: "true"
+        - name: secret.nexusAdminSecret.adminPassword
+          value: "admin"
+        - name: secret.license.licenseSecret.enabled
+          value: "true"
+        - name: secret.license.licenseSecret.fileContentsBase64
+          value: "{{ .Values.packages.nexus.license_b64 }}"
+      values: |
+        statefulset:
+          container:
+            resources:
+              {{- toYaml .Values.packages.nexus.server.pod.container.resources | nindent 14 }}
+          auditLogContainer:
+            resources:
+              {{- toYaml .Values.packages.nexus.auditLogger.pod.container.resources | nindent 14 }}
+          requestLogContainer:
+            resources:
+              {{- toYaml .Values.packages.nexus.requestLogger.pod.container.resources | nindent 14 }}
+          taskLogContainer:
+            resources:
+              {{- toYaml .Values.packages.nexus.taskLogger.pod.container.resources | nindent 14 }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+---

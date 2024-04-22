@@ -1,0 +1,33 @@
+{{- if index .Values "packages" "generic-application" "ingress" "tcpMappings" }}
+  {{- range $tcpMapping := index .Values "packages" "generic-application" "ingress" "tcpMappings" }}
+    {{- if and $tcpMapping.serviceName $tcpMapping.servicePort }}
+---
+apiVersion: getambassador.io/v3alpha1
+kind: TCPMapping
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ $.Chart.Name }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: {{ $.Values.organization }}.{{ $.Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ $.Release.Name }}-{{ $tcpMapping.serviceName }}-{{ $tcpMapping.servicePort }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  ambassador_id:
+    - {{ include "common.ingressController.id" (merge (dict "networkPlane" (default "public" (index $.Values "packages" "generic-application" "ingress" "networkPlane"))) $) }}
+  host: {{ (include "generic-application.ingress.host" (merge (dict "networkPlane" (default "public" (index $.Values "packages" "generic-application" "ingress" "networkPlane"))) $) | split ":")._0 }}
+  port: {{ $tcpMapping.port }}
+  {{- range $service := (index $.Values "packages" "generic-application" "services") }}
+    {{- if eq $service.name $tcpMapping.serviceName }}
+      {{- range $port := $service.ports }}
+        {{- if eq $port.port $tcpMapping.servicePort }}
+  service: {{ $.Release.Name }}-{{ $tcpMapping.serviceName }}.{{ $.Release.Namespace }}:{{ $tcpMapping.servicePort }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  idle_timeout_ms: "{{ default 3600000 $tcpMapping.idleTimeoutMs }}"
+...
+    {{- end }}
+  {{- end }}
+{{- end }}

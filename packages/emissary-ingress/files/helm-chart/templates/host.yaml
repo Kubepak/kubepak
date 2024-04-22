@@ -1,0 +1,47 @@
+{{- if index .Values "packages" "emissary-ingress" "hosts" }}
+  {{- range $host := index .Values "packages" "emissary-ingress" "hosts" }}
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Host
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ $.Chart.Name }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: {{ $.Values.organization }}.{{ $.Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ $.Release.Name }}-{{ $host.name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  ambassador_id:
+    - {{ include "emissary-ingress.id" $ }}
+  hostname: "{{ default (printf "*.%s:%d" (include "common.host.defaultDomain" $) (index $.Values "packages" "emissary-ingress" "service" "httpsPort" | int)) $host.hostname }}"
+  tlsSecret:
+    name: {{ $.Release.Name }}-{{ $host.name }}-tls
+  tls:
+    alpn_protocols: h2,http/1.1
+    {{- $min_tls_version := "1.2" -}}
+    {{- if $host.tls }}
+      {{- if $host.tls.minVersion }}
+        {{- $min_tls_version = $host.tls.minVersion -}}
+      {{- end }}
+    {{- end }}
+    min_tls_version: v{{ $min_tls_version }}
+    {{- $max_tls_version := "1.3" -}}
+    {{- if $host.tls }}
+      {{- if $host.tls.maxVersion }}
+        {{- $max_tls_version = $host.tls.maxVersion -}}
+      {{- end }}
+    {{- end }}
+    max_tls_version: v{{ $max_tls_version }}
+    cipher_suites:
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-ECDSA-AES128-GCM-SHA256
+      - ECDHE-ECDSA-CHACHA20-POLY1305
+      - ECDHE-RSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES128-GCM-SHA256
+      - ECDHE-RSA-CHACHA20-POLY1305
+  acmeProvider:
+    authority: none
+...
+  {{- end }}
+{{- end }}

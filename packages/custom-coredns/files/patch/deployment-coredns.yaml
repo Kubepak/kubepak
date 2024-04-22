@@ -1,0 +1,17 @@
+---
+spec:
+  template:
+    spec:
+      containers:
+        - name: coredns
+          volumeMounts:
+            - name: custom-config-volume
+              mountPath: "/etc/coredns/custom"
+              readOnly: true
+      volumes:
+        - name: custom-config-volume
+          configMap:
+            name: coredns-custom
+            defaultMode: 420
+            optional: true
+...

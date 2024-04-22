@@ -1,0 +1,18 @@
+packages:
+  prometheus-stack:
+    grafana:
+      enabled: false
+      image:
+        registry:
+        repository:
+        tag:
+      ingress:
+        host:
+      web:
+        externalUrl:
+      auth:
+        oidc:
+          enabled: false
+          providers:
+            generic: {}
+            microsoft: {}

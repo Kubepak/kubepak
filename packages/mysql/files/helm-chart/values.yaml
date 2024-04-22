@@ -1,0 +1,28 @@
+packages:
+  mysql:
+    image:
+      registry:
+      repository:
+      tag:
+    auth:
+      rootPassword: root
+    primary:
+      maxAllowedPacket:
+      persistence:
+        size: 8Gi
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+        container:
+          resources: {}
+    secondary:
+      maxAllowedPacket:
+      persistence:
+        size: 8Gi
+      pod:
+        nodeSelector: {}
+        tolerations: []
+        affinity: {}
+        container:
+          resources: {}

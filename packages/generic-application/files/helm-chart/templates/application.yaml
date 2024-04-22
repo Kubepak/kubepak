@@ -1,0 +1,35 @@
+---
+{{- $_ := unset (index .Values "packages" "generic-application") "databases" }}
+{{- $_ = unset (index .Values "packages" "generic-application") "ingress" }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: {{ index .Values "packages" "generic-application" "chartRepoURL" }}
+    targetRevision: {{ index .Values "packages" "generic-application" "chartVersion" }}
+    path: helm-chart
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+      values: |
+        {{- toYaml (merge (index .Values "packages" "generic-application") (dict "pod" (fromYaml (include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .))))) | nindent 8 }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

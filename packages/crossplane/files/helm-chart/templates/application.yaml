@@ -1,0 +1,61 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://charts.crossplane.io/stable
+    targetRevision: {{ .Values.packages.crossplane.chartVersion }}
+    chart: crossplane
+    helm:
+      parameters:
+        - name: nameOverride
+          value: "{{ .Release.Name }}"
+        {{- if .Values.packages.crossplane.image.repository }}
+        - name: image.repository
+          value: "{{ .Values.packages.crossplane.image.repository }}"
+        {{- end }}
+        {{- if .Values.packages.crossplane.image.tag }}
+        - name: image.tag
+          value: "{{ .Values.packages.crossplane.image.tag }}"
+        {{- end }}
+      values: |
+        nodeSelector:
+          {{- toYaml .Values.packages.crossplane.pod.nodeSelector | nindent 10 }}
+        tolerations:
+          {{- toYaml .Values.packages.crossplane.pod.tolerations | nindent 10 }}
+        affinity:
+          {{- toYaml .Values.packages.crossplane.pod.affinity | nindent 10 }}
+        {{- if .Values.packages.crossplane.pod.container.resources }}
+        resourcesCrossplane:
+          {{- toYaml .Values.packages.crossplane.pod.container.resources | nindent 10 }}
+        {{- end }}
+        rbacManager:
+          nodeSelector:
+            {{- toYaml .Values.packages.crossplane.rbacManager.pod.nodeSelector | nindent 12 }}
+          tolerations:
+            {{- toYaml .Values.packages.crossplane.rbacManager.pod.tolerations | nindent 12 }}
+          affinity:
+            {{- toYaml .Values.packages.crossplane.rbacManager.pod.affinity | nindent 12 }}
+        {{- if .Values.packages.crossplane.rbacManager.pod.container.resources }}
+        resourcesRBACManager:
+          {{- toYaml .Values.packages.crossplane.rbacManager.pod.container.resources | nindent 10 }}
+        {{- end }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

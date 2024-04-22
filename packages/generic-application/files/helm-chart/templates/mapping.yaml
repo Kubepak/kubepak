@@ -1,0 +1,63 @@
+{{- if index .Values "packages" "generic-application" "ingress" "mappings" }}
+  {{- range $mapping := index .Values "packages" "generic-application" "ingress" "mappings" }}
+    {{- if and $mapping.serviceName $mapping.servicePort }}
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Mapping
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ $.Chart.Name }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: {{ $.Values.organization }}.{{ $.Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ $.Release.Name }}-{{ $mapping.serviceName }}-{{ $mapping.servicePort }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  ambassador_id:
+    - {{ include "common.ingressController.id" (merge (dict "networkPlane" (default "public" (index $.Values "packages" "generic-application" "ingress" "networkPlane"))) $) }}
+  grpc: {{ default false $mapping.grpc }}
+  prefix: {{ default "/" $mapping.prefix }}
+  rewrite: {{ default "/" $mapping.rewrite }}
+  host: {{ include "generic-application.ingress.host" (merge (dict "networkPlane" (default "public" (index $.Values "packages" "generic-application" "ingress" "networkPlane"))) $) }}
+  {{- range $service := (index $.Values "packages" "generic-application" "services") }}
+    {{- if eq $service.name $mapping.serviceName }}
+      {{- range $port := $service.ports }}
+        {{- if eq $port.port $mapping.servicePort }}
+  service: {{ $.Release.Name }}-{{ $mapping.serviceName }}.{{ $.Release.Namespace }}:{{ $mapping.servicePort }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  bypass_auth: {{ default true $mapping.bypassAuth }}
+  timeout_ms: {{ default 3000 $mapping.timeoutMs }}
+  idle_timeout_ms: {{ default 3600000 $mapping.idleTimeoutMs }}
+  connect_timeout_ms: {{ default 3000 $mapping.connectTimeoutMs }}
+  {{- if $mapping.cors }}
+  cors:
+    credentials: {{ default false $mapping.cors.credentials }}
+    {{- with $mapping.cors.exposedHeaders }}
+    exposed_headers:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $mapping.cors.headers }}
+    headers:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+    max_age: "{{ default 86400 $mapping.cors.maxAge }}"
+    {{- with $mapping.cors.methods }}
+    methods:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $mapping.cors.origins }}
+    origins:
+    {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- with $mapping.allowUpgrade }}
+  allow_upgrade:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+...
+    {{- end }}
+  {{- end }}
+{{- end }}

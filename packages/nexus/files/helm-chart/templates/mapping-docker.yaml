@@ -1,0 +1,21 @@
+{{- range $registry := .Values.packages.nexus.docker.registries }}
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Mapping
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ $.Chart.Name }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: {{ $.Values.organization }}.{{ $.Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ $.Release.Name }}-docker-{{ $registry }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  ambassador_id:
+    - {{ include "common.ingressController.id" (merge (dict "networkPlane" "public") $) }}
+  prefix: /
+  host: {{ $registry }}.{{ include "nexus.ingress.host" (merge (dict "networkPlane" "public") $) }}
+  service: nexus.{{ $.Release.Namespace }}:80
+  bypass_auth: true
+...
+{{- end }}

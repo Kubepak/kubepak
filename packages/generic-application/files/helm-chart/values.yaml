@@ -1,0 +1,5 @@
+packages:
+  generic-application:
+    ingress:
+      host:
+    services: []
