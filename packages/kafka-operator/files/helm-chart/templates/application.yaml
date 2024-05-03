@@ -1,0 +1,54 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ .Values.environment }}-argo-cd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://strimzi.io/charts
+    targetRevision: {{ index .Values "packages" "kafka-operator" "chartVersion" }}
+    chart: strimzi-kafka-operator
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if index .Values "packages" "kafka-operator" "image" "registry" }}
+        - name: image.registry
+          value: "{{ index .Values "packages" "kafka-operator" "image" "registry" }}"
+        {{- end }}
+        {{- if index .Values "packages" "kafka-operator" "image" "repository" }}
+        - name: image.repository
+          value: "{{ index .Values "packages" "kafka-operator" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "kafka-operator" "image" "tag" }}
+        - name: image.tag
+          value: "{{ index .Values "packages" "kafka-operator" "image" "tag" }}"
+        {{- end }}
+        - name: replicas
+          value: "{{ index .Values "packages" "kafka-operator" "replicas" }}"
+        - name: watchAnyNamespace
+          value: "{{ index .Values "packages" "kafka-operator" "watchAnyNamespaces" }}"
+      values: |
+        {{- if index .Values "packages" "kafka-operator" "dashboards" "enabled" }}
+        dashboards:
+          enabled: {{ index .Values "packages" "kafka-operator" "dashboards" "enabled" }}
+          annotations:
+            grafana_folder: Kafka
+        {{- end }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

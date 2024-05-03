@@ -1,0 +1,10 @@
+packages:
+  kafka-operator:
+    image:
+      registry:
+      repository:
+      tag:
+    replicas: 1
+    watchAnyNamespaces: false
+    dashboards:
+      enabled: false
