@@ -1,0 +1,169 @@
+{{- $isPrometheusMetricsEnabled := include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ .Values.environment }}-argo-cd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: registry-1.docker.io/bitnamicharts
+    targetRevision: {{ index .Values "packages" "rabbitmq-operator" "chartVersion" }}
+    chart: rabbitmq-cluster-operator
+    helm:
+    {{- if index .Values}}
+      values: |
+        global:
+          {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 10 }}
+          {{- if index .Values "packages" "rabbitmq-operator" "global" "image" "registry" }}
+          imageRegistry: "{{ index .Values "packages" "rabbitmq-operator" "global" "image" "registry" }}"
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "global" "storageClass" }}
+          storageClass: "{{ index .Values "packages" "rabbitmq-operator" "global" "storageClass" }}"
+          {{- end }}
+        clusterOperator:
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "affinity" }}
+          affinity:
+            {{- toYaml (index .Values "packages" "rabbitmq-operator" "clusterOperator" "affinity") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "image" "digest" }}
+          digest: "{{ index .Values "packages" "rabbitmq-operator" "clusterOperator" "image" "digest" }}"
+          {{- end }}
+          metrics:
+            service:
+              enabled: {{ $isPrometheusMetricsEnabled }}
+            serviceMonitor:
+              enabled: {{ $isPrometheusMetricsEnabled }}
+              additionalLabels:
+                release: prometheus-stack
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "networkPolicy" "enabled" }}
+          networkPolicy:
+            enabled: true
+            {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "networkPolicy" "allowExternal" }}
+            allowExternal: {{ index .Values "packages" "rabbitmq-operator" "clusterOperator" "networkPolicy" "allowExternal" }}
+            {{- end }}
+            {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "networkPolicy" "allowExternalEgress" }}
+            allowExternalEgress: {{ index .Values "packages" "rabbitmq-operator" "clusterOperator" "networkPolicy" "allowExternalEgress" }}
+            {{- end }}
+            {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "networkPolicy" "ingressNSMatchLabels" }}
+            ingressNSMatchLabels: {{- toYaml (index .Values "packages" "rabbitmq-operator" "clusterOperator" "networkPolicy" "ingressNSMatchLabels") | nindent 14 }}
+            {{- end }}
+            {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "networkPolicy" "ingressNSPodMatchLabels" }}
+            ingressNSPodMatchLabels: {{- toYaml (index .Values "packages" "rabbitmq-operator" "clusterOperator" "networkPolicy" "ingressNSPodMatchLabels") | nindent 14 }}
+            {{- end }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "nodeSelector" }}
+          nodeSelector:
+            {{- toYaml (index .Values "packages" "rabbitmq-operator" "clusterOperator" "nodeSelector") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "replicaCount" }}
+          replicaCount: {{ index .Values "packages" "rabbitmq-operator" "clusterOperator" "replicaCount" }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "image" "repository" }}
+          repository: "{{ index .Values "packages" "rabbitmq-operator" "clusterOperator" "image" "repository" }}"
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "resources" }}
+          resources:
+            {{- toYaml (index .Values "packages" "rabbitmq-operator" "clusterOperator" "resources") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "revisionHistoryLimit" }}
+          revisionHistoryLimit: {{ index .Values "packages" "rabbitmq-operator" "clusterOperator" "revisionHistoryLimit" }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "terminationGracePeriodSeconds" }}
+          terminationGracePeriodSeconds: "{{ index .Values "packages" "rabbitmq-operator" "clusterOperator" "terminationGracePeriodSeconds" }}"
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "tolerations" }}
+          tolerations:
+            {{- toYaml (index .Values "packages" "rabbitmq-operator" "clusterOperator" "tolerations") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "watchAllNamespaces" }}
+          watchAllNamespaces: "{{ index .Values "packages" "rabbitmq-operator" "clusterOperator" "watchAllNamespaces" }}"
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "clusterOperator" "watchNamespaces" }}
+          watchNamespaces: "{{ index .Values "packages" "rabbitmq-operator" "clusterOperator" "watchNamespaces" }}"
+          {{- end }}
+        {{- if or (index .Values "packages" "rabbitmq-operator" "credentialUpdater" "image" "digest") (index .Values "packages" "rabbitmq-operator" "credentialUpdater" "image" "repository") }}
+        credentialUpdaterImage:
+          {{- if index .Values "packages" "rabbitmq-operator" "credentialUpdater" "image" "repository" }}
+          repository: "{{ index .Values "packages" "rabbitmq-operator" "credentialUpdater" "image" "repository" }}"
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "credentialUpdater" "image" "digest" }}
+          digest: "{{ index .Values "packages" "rabbitmq-operator" "credentialUpdater" "digest" }}"
+          {{- end }}
+        {{- end }}
+        msgTopologyOperator:
+          {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "affinity" }}
+          affinity:
+            {{- toYaml (index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "affinity") | nindent 12 }}
+          {{- end }}
+          metrics:
+            service:
+              enabled: {{ $isPrometheusMetricsEnabled }}
+            serviceMonitor:
+              enabled: {{ $isPrometheusMetricsEnabled }}
+              additionalLabels:
+                release: prometheus-stack
+          {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "networkPolicy" "enabled" }}
+          networkPolicy:
+            enabled: true
+            {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "networkPolicy" "allowExternal" }}
+            allowExternal:
+              {{ index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "networkPolicy" "allowExternal" }}
+            {{- end }}
+            {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "networkPolicy" "allowExternalEgress" }}
+            allowExternalEgress:
+              {{ index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "networkPolicy" "allowExternalEgress" }}
+            {{- end }}
+            {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "networkPolicy" "ingressNSMatchLabels" }}
+            ingressNSMatchLabels:
+              {{- toYaml (index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "networkPolicy" "ingressNSMatchLabels") | nindent 14 }}
+            {{- end }}
+            {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "networkPolicy" "ingressNSPodMatchLabels" }}
+            ingressNSPodMatchLabels:
+              {{- toYaml (index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "networkPolicy" "ingressNSPodMatchLabels") | nindent 14 }}
+            {{- end }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "nodeSelector" }}
+          nodeSelector:
+            {{- toYaml (index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "nodeSelector") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "replicaCount" }}
+          replicaCount: {{ index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "replicaCount" }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "resources" }}
+          resources:
+            {{- toYaml (index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "resources") | nindent 12 }}
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "terminationGracePeriodSeconds" }}
+          terminationGracePeriodSeconds: "{{ index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "terminationGracePeriodSeconds" }}"
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "tolerations" }}
+          tolerations:
+            {{- toYaml (index .Values "packages" "rabbitmq-operator" "msgTopologyOperator" "tolerations") | nindent 12 }}
+          {{- end }}
+        {{- if or (index .Values "packages" "rabbitmq-operator" "rabbitmq" "image" "digest") (index .Values "packages" "rabbitmq-operator" "rabbitmq" "image" "repository") }}
+        rabbitmqImage:
+          {{- if index .Values "packages" "rabbitmq-operator" "rabbitmq" "image" "digest" }}
+          digest: "{{ index .Values "packages" "rabbitmq-operator" "rabbitmq" "image" "digest" }}"
+          {{- end }}
+          {{- if index .Values "packages" "rabbitmq-operator" "rabbitmq" "image" "repository" }}
+          repository: "{{ index .Values "packages" "rabbitmq-operator" "rabbitmq" "image" "repository" }}"
+          {{- end }}
+        {{- end }}
+    {{- end }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

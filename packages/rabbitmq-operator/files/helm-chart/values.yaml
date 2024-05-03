@@ -1,0 +1,55 @@
+packages:
+  rabbitmq-operator:
+    global:
+      image:
+        registry:
+      storageClass:
+    clusterOperator:
+      affinity: {}
+      image:
+        digest:
+        repository:
+      networkPolicy:
+        enabled:
+        allowExternal:
+        allowExternalEgress:
+        ingressNSMatchLabels: {}
+        ingressNSPodMatchLabels: {}
+      nodeSelector: {}
+      replicaCount: 1
+      resources: {}
+      revisionHistoryLimit:
+      terminationGracePeriodSeconds:
+      tolerations: []
+      watchAllNamespaces:
+      watchNamespaces: []
+    credentialUpdater:
+      image:
+        digest:
+        repository:
+    msgTopologyOperator:
+      affinity: {}
+      enabled: true
+      image:
+        repository:
+        digest:
+      existingWebhookCertCABundle:
+      existingWebhookCertSecret:
+      networkPolicy:
+        allowExternal:
+        allowExternalEgress:
+        enabled:
+        ingressNSMatchLabels: {}
+        ingressNSPodMatchLabels: {}
+      nodeSelector: {}
+      replicaCount: 1
+      resources: {}
+      revisionHistoryLimit:
+      terminationGracePeriodSeconds:
+      tolerations: []
+      watchAllNamespaces:
+      watchNamespaces: []
+    rabbitmq:
+      image:
+        repository:
+        digest:

@@ -1,0 +1,521 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "datasource": {
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "enable": true,
+        "expr": "ALERTS{rulesgroup=\"rabbitmq\", namespace=~\"$namespace\", rabbitmq_cluster=~\"$rabbitmq_cluster\", severity=~\"$severity\", alertname=~\"$alert_name\"}",
+        "hide": true,
+        "iconColor": "#1F60C4",
+        "limit": 100,
+        "name": "RabbitMQ Alerts Annotations",
+        "showIn": 0,
+        "step": "30s",
+        "tags": [],
+        "textFormat": "alert name: {{alertname}}, namespace: {{namespace}}, RabbitMQ cluster: {{rabbitmq_cluster}}, severity: {{severity}}",
+        "titleFormat": "",
+        "type": "tags",
+        "useValueForTime": false
+      },
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Dashboard showing pending and firing Prometheus alerts for RabbitMQ clusters.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Number of firing alerts at the end of the defined time range.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "count(ALERTS{rulesgroup=\"rabbitmq\", alertstate=\"firing\", namespace=~\"$namespace\", rabbitmq_cluster=~\"$rabbitmq_cluster\", severity=~\"$severity\", alertname=~\"$alert_name\"})",
+          "format": "table",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Firing Alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Number of pending alerts at the end of the defined time range.",
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 9,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "count(ALERTS{rulesgroup=\"rabbitmq\", alertstate=\"pending\", namespace=~\"$namespace\", rabbitmq_cluster=~\"$rabbitmq_cluster\", severity=~\"$severity\", alertname=~\"$alert_name\"})",
+          "format": "table",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Pending Alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "uid": "${DS_PROMETHEUS}"
+      },
+      "description": "Shows details of pending and firing alerts for the defined time range.\n\nColumn 'Number of Times Alert started' shows how many times a particular alert transitioned from inactive into active (i.e. pending or firing) state for the defined time range.\n",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": false,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Severity"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 514
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "RabbitMQ node"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 423
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Alert Name"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 319
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "PersistentVolumeClaim"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 241
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Pod"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 222
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 4,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "10.4.1",
+      "repeatDirection": "h",
+      "targets": [
+        {
+          "datasource": {
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "expr": "changes( ALERTS_FOR_STATE{rulesgroup=\"rabbitmq\", namespace=~\"$namespace\", rabbitmq_cluster=~\"$rabbitmq_cluster\", severity=~\"$severity\", alertname=~\"$alert_name\"}[$__range] ) + 1",
+          "format": "table",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Alert History Details",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "container": true,
+              "endpoint": true,
+              "job": true,
+              "label_app_kubernetes_io_name": true,
+              "phase": true,
+              "rulesgroup": true,
+              "service": true,
+              "statefulset": true
+            },
+            "indexByName": {
+              "Time": 8,
+              "Value": 7,
+              "alertname": 0,
+              "container": 11,
+              "endpoint": 12,
+              "instance": 3,
+              "job": 9,
+              "label_app_kubernetes_io_name": 13,
+              "namespace": 1,
+              "persistentvolumeclaim": 5,
+              "phase": 14,
+              "pod": 4,
+              "rabbitmq_cluster": 2,
+              "rulesgroup": 10,
+              "service": 15,
+              "severity": 6,
+              "statefulset": 16
+            },
+            "renameByName": {
+              "Time": "Time of Query",
+              "Value": "Number of Times Alert started",
+              "alertname": "Alert Name",
+              "container": "",
+              "instance": "Instance (scraped endpoint)",
+              "namespace": "Namespace",
+              "persistentvolumeclaim": "PersistentVolumeClaim",
+              "pod": "Pod",
+              "rabbitmq_cluster": "RabbitMQ Cluster",
+              "rabbitmq_node": "RabbitMQ node",
+              "severity": "Severity"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "rabbitmq-prometheus"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "Prometheus",
+          "value": "prometheus"
+        },
+        "hide": 2,
+        "includeAll": false,
+        "label": "datasource",
+        "multi": false,
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(ALERTS{rulesgroup=\"rabbitmq\"},namespace)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Namespace",
+        "multi": true,
+        "name": "namespace",
+        "options": [],
+        "query": {
+          "query": "label_values(ALERTS{rulesgroup=\"rabbitmq\"},namespace)",
+          "refId": "Prometheus-namespace-Variable-Query"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(ALERTS{rulesgroup=\"rabbitmq\", namespace=~\"$namespace\"}, rabbitmq_cluster)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "RabbitMQ Cluster",
+        "multi": true,
+        "name": "rabbitmq_cluster",
+        "options": [],
+        "query": {
+          "query": "label_values(ALERTS{rulesgroup=\"rabbitmq\", namespace=~\"$namespace\"}, rabbitmq_cluster)",
+          "refId": "Prometheus-rabbitmq_cluster-Variable-Query"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(ALERTS{rulesgroup=\"rabbitmq\", namespace=~\"$namespace\", rabbitmq_cluster=~\"$rabbitmq_cluster\"}, severity)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Severity",
+        "multi": true,
+        "name": "severity",
+        "options": [],
+        "query": {
+          "query": "label_values(ALERTS{rulesgroup=\"rabbitmq\", namespace=~\"$namespace\", rabbitmq_cluster=~\"$rabbitmq_cluster\"}, severity)",
+          "refId": "Prometheus-severity-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROMETHEUS}"
+        },
+        "definition": "label_values(ALERTS{rulesgroup=\"rabbitmq\", namespace=~\"$namespace\", rabbitmq_cluster=~\"$rabbitmq_cluster\", severity=~\"$severity\"}, alertname)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Alert Name",
+        "multi": true,
+        "name": "alert_name",
+        "options": [],
+        "query": {
+          "query": "label_values(ALERTS{rulesgroup=\"rabbitmq\", namespace=~\"$namespace\", rabbitmq_cluster=~\"$rabbitmq_cluster\", severity=~\"$severity\"}, alertname)",
+          "refId": "Prometheus-alert_name-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "15s",
+      "30s",
+      "1m",
+      "5m",
+      "10m"
+    ]
+  },
+  "timezone": "",
+  "title": "RabbitMQ-Alerts",
+  "uid": "jjCq5SLMk",
+  "version": 1,
+  "weekStart": ""
+}
