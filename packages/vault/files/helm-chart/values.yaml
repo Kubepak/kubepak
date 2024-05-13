@@ -1,5 +1,17 @@
 packages:
   vault:
+    auth:
+      oidc:
+        clientId:
+        clientSecret:
+        discoveryUrl:
+        enabled:
+        oidcScopes:
+        roles: []
+    ha:
+      enabled: true
+      replicas: 3
+      raft: false
     image:
       repository:
       tag:
@@ -9,6 +21,14 @@ packages:
         tag:
     ingress:
       host:
+    backend:
+      postgresql:
+        enabled:
+        username:
+        password:
+        dbname:
+        host:
+        ha_enabled:
     tls:
       ca:
         srcFilePath:

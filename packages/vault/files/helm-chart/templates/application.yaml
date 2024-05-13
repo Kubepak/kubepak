@@ -1,3 +1,4 @@
+{{- $isPrometheusMetricsEnabled := include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -21,6 +22,8 @@ spec:
       parameters:
         - name: fullnameOverride
           value: "{{ .Release.Name }}"
+        - name: global.serverTelemetry.prometheusOperator
+          value: "{{ $isPrometheusMetricsEnabled }}"
         {{- if .Values.packages.vault.image.repository }}
         - name: injector.agentImage.repository
           value: "{{ .Values.packages.vault.image.repository }}"
@@ -44,9 +47,53 @@ spec:
       values: |
         {{- include "common.registryCredentials.imagePullSecrets" . | nindent 8 }}
         server:
+          {{- if or .Values.packages.vault.seal .Values.packages.vault.backend.postgresql.enabled }}
+          extraArgs: "-config=/vault/userconfig/extra-config/extra-config.hcl"
+          {{- end }}
+          {{- if .Values.packages.vault.ha.enabled }}
+          ha:
+            enabled: {{ .Values.packages.vault.ha.enabled }}
+            replicas: {{ .Values.packages.vault.ha.replicas }}
+            raft:
+              enabled: {{ .Values.packages.vault.ha.raft }}
+              config: |
+                ui = true
+                listener "tcp" {
+                  tls_disable = 1
+                  address = "[::]:8200"
+                  cluster_address = "[::]:8201"
+                  telemetry {
+                    unauthenticated_metrics_access = "true"
+                  }
+                }
+                storage "raft" {
+                  path = "/vault/data"
+                }
+                service_registration "kubernetes" {}
+                telemetry {
+                  disable_hostname = true
+                  prometheus_retention_time = "30s"
+                }
+            config: |
+              ui = true
+              listener "tcp" {
+                tls_disable = "true"
+                address = "[::]:8200"
+                cluster_address = "[::]:8201"
+                telemetry {
+                  unauthenticated_metrics_access = "true"
+                }
+              }
+              service_registration "kubernetes" {}
+              telemetry {
+                disable_hostname = true
+                prometheus_retention_time = "30s"
+              }
+          {{- end }}
           serviceAccount:
             annotations:
               {{- toYaml .Values.packages.vault.serviceAccount.annotations | nindent 14 }}
+          {{- if not .Values.packages.vault.ha.enabled }}
           standalone:
             config: |
               ui = true
@@ -54,6 +101,9 @@ spec:
                 tls_disable = "true"
                 address = "[::]:8200"
                 cluster_address = "[::]:8201"
+                telemetry {
+                  unauthenticated_metrics_access = "true"
+                }
               }
               storage "file" {
                 path = "/vault/data"
@@ -64,17 +114,41 @@ spec:
                 {{ $key }} = "{{ $value }}"
                 {{- end }}
               }
+              telemetry {
+                disable_hostname = true
+                prometheus_retention_time = "30s"
+              }
               {{- end }}
-          {{- if .Values.packages.vault.tls.ca.srcFilePath }}
+          {{- end }}
           volumes:
+            {{- if .Values.packages.vault.tls.ca.srcFilePath }}
             - name: ca-certificates
               configMap:
                 name: {{ .Release.Name }}-ca-certificates
+            {{- end }}
+            - name: "extra-config"
+              secret:
+                defaultMode: 420
+                secretName: "{{ .Release.Name }}-extra-config"
+                optional: true
           volumeMounts:
+            {{- if .Values.packages.vault.tls.ca.srcFilePath }}
             - name: ca-certificates
               readOnly: true
               mountPath: {{ .Values.packages.vault.tls.ca.dstFilePath | dir }}
-          {{- end }}
+            {{- end }}
+            - name: "extra-config"
+              mountPath: "/vault/userconfig/extra-config"
+              readOnly: true
+        serverTelemetry:
+          serviceMonitor:
+            enabled: {{ $isPrometheusMetricsEnabled }}
+            authorization:
+              credentials:
+                name: "{{ .Release.Name }}-metrics-client"
+                key: token
+            selectors:
+              release: prometheus-stack
   destination:
     server: {{ .Values.kubernetes.server }}
     namespace: {{ .Release.Namespace }}

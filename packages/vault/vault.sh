@@ -19,7 +19,7 @@
 
 set -eo pipefail
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/scripts/package.sh"
+source "support/scripts/package.sh"
 
 #-----------------------------------------------------------------------------
 # Package Options
@@ -30,6 +30,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 # @package-option dependencies="argo-cd"
 # @package-option dependencies="emissary-ingress" [ ",${CONTEXT}," =~ ",single-ingress-controller," ]
 # @package-option dependencies="ingress-management" [ ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
+# @package-option dependencies="vault-database"
 
 # @package-option envs="VAULT_ADDR="http://127.0.0.1:\${VAULT_PORT}""
 
@@ -65,6 +66,43 @@ hook_pre_install() {
 
         k8s_configmap_create_from_file "${K8S_PACKAGE_NAMESPACE}" "${K8S_PACKAGE_NAME}-ca-certificates" "$(basename "${__tls_ca_dst_file_path}")" "${__tls_ca_src_file_path}"
     fi
+
+    local __database_host
+    __database_host="$(package_cache_values_file_read ".packages.vault-database.metadata.host")"
+    local __database_port
+    __database_port="$(package_cache_values_file_read ".packages.vault-database.metadata.port")"
+    local __database_root_username
+    __database_root_username="$(package_cache_values_file_read ".packages.vault-database.metadata.root.username")"
+    local __database_root_password
+    __database_root_password="$(package_cache_values_file_read ".packages.vault-database.metadata.root.password")"
+
+    database_create "postgresql" "vault" "${__database_host}" "${__database_port}" "" "${__database_root_username}" "${__database_root_password}"
+
+    local __database_vault_password
+    if ! k8s_resource_exists "${K8S_PACKAGE_NAMESPACE}" "secret" "${PACKAGE_NAME}-vault-database-creds"; then
+        __database_vault_password="$(password_generate "32")"
+        k8s_secret_create "${K8S_PACKAGE_NAMESPACE}" "${PACKAGE_NAME}-vault-database-creds" "kubernetes.io/basic-auth" '{
+          "username": "'"$(echo "vault" | base64)"'",
+          "password": "'"$(echo "${__database_vault_password}" | base64)"'"
+        }'
+    else
+        __database_vault_password="$(kubectl get secret -n "${K8S_PACKAGE_NAMESPACE}" "${PACKAGE_NAME}-vault-database-creds" --template='{{.data.password | base64decode}}')"
+    fi
+
+    database_create_user "postgresql" "vault" "${__database_host}" "${__database_port}" "" "rw" "postgres" "${__database_root_password}" "vault" "${__database_vault_password}"
+
+    package_cache_values_file_write ".packages.${PACKAGE_IPATH}.backend.postgresql.username" "vault" true
+    package_cache_values_file_write ".packages.${PACKAGE_IPATH}.backend.postgresql.password" "${__database_vault_password}" true
+    package_cache_values_file_write ".packages.${PACKAGE_IPATH}.backend.postgresql.host" "${__database_host}" true
+    package_cache_values_file_write ".packages.${PACKAGE_IPATH}.backend.postgresql.port" "${__database_port}" true
+    package_cache_values_file_write ".packages.${PACKAGE_IPATH}.backend.postgresql.dbname" "vault" true
+
+    local __connection_string
+    __connection_string="postgresql://vault:${__database_vault_password}@${__database_host}:${__database_port}/vault"
+    if [[ "${__database_host}" =~ .*\.svc\.cluster\.local\.?$ ]]; then
+        __connection_string="postgresql://vault:${__database_vault_password}@127.0.0.1:${VAULT_DATABASE_PORT}/vault"
+    fi
+    psql "${__connection_string}" -f "${PACKAGE_DIR}/files/db/tables.sql"
 }
 
 hook_install() {
@@ -139,9 +177,17 @@ hook_post_install() {
     local __vault_token
     __vault_token="$(grep -Po 'Initial Root Token: \K.*' <<<"${__init_output}")"
 
-    vault login "${__vault_token}" >/dev/null 2>&1
-
     package_cache_values_file_write ".packages.${PACKAGE_IPATH}.rootToken" "${__vault_token}" true
+
+    until [ "$(vault status --format=json | jq -r '.sealed')" == "false" ]; do
+        sleep 5
+    done
+
+    until [ "$(kubectl -n "$K8S_PACKAGE_NAMESPACE" get pods -l vault-active==true -o json | jq -r '.items|length')" -gt 0 ]; do
+        sleep 5
+    done
+
+    vault login "${__vault_token}"
 
     if ! vault secrets list -format json | jq -e '.["secret/"]' >/dev/null; then
         vault secrets enable -path=secret -version=2 kv
@@ -183,6 +229,37 @@ path "secret/metadata/{{identity.entity.aliases.${__kubernetes_accessor}.metadat
   capabilities = ["read", "list"]
 }
 EOF
+
+    vault policy write metrics - <<EOF
+path "sys/metrics" {
+  capabilities = ["read"]
+}
+EOF
+
+    k8s_secret_create "${K8S_PACKAGE_NAMESPACE}" "${K8S_PACKAGE_NAME}-metrics-client" "opaque" '{
+          "token": "'"$(vault token create -policy=metrics -field=token | base64 -w0)"'",
+        }'
+
+    ### TODO: NEED ANOTHER BRAIN
+    if [ "$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.auth.oidc.enabled")" = true ]; then
+        if ! vault auth list -format json | jq -e '.["oidc/"]' >/dev/null; then
+            vault auth enable oidc
+        fi
+
+         for __role in $(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.auth.oidc.roles[]"); do
+            vault write auth/oidc/config oidc_client_id="$(package_cache_values_file_read ".packages.${PACKAGE_NAME}.auth.oidc.clientId")" \
+                oidc_client_secret="$(package_cache_values_file_read ".packages.${PACKAGE_NAME}.auth.oidc.clientSecret")" \
+                oidc_discovery_url="$(package_cache_values_file_read ".packages.${PACKAGE_NAME}.auth.oidc.discoveryUrl")"
+            vault write auth/oidc/role/"${__role}" user_claim="sub" \
+                allowed_redirect_uris="http://localhost:8250/oidc/callback" \
+                allowed_redirect_uris="$(package_cache_values_file_read ".packages.${PACKAGE_NAME}.vault.ingress.host")/ui/vault/auth/oidc/oidc/callback" \
+                token_no_default_policy=true groups_claim="groups" oidc_scopes="$(package_cache_values_file_read ".packages.${PACKAGE_NAME}.auth.oidc.oidcScopes")"
+            VAULT_GROUP_ID=$(vault write -field=id -format=table identity/group name="${ENTRA_ID_GROUP_NAME}" type="external" policies="${__role}")
+            VAULT_OIDC_ACCESSOR_ID=$(vault auth list -format=json | jq -r '."oidc/".accessor')
+            ENTRA_ID_GROUP_ID=$(az ad group show --group "${ENTRA_ID_GROUP_NAME}" | jq .id -r)
+            vault write identity/group-alias name="${ENTRA_ID_GROUP_ID}" mount_accessor="$VAULT_OIDC_ACCESSOR_ID" canonical_id="$VAULT_GROUP_ID"
+        done
+    fi
 }
 
 package_hook_execute "${@}"
