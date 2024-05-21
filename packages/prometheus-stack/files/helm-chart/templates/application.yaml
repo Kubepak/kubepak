@@ -84,6 +84,156 @@ spec:
               role_attribute_strict: true
               {{- end }}
             {{- end }}
+        {{- if index .Values "packages" "prometheus-stack" "alertmanager" "enabled" }}
+        alertmanager:
+          config:
+            {{- if index .Values "packages" "prometheus-stack" "alertmanager" "smtp" "enabled" }}
+            global:
+              smtp_smarthost: {{ index .Values "packages" "prometheus-stack" "alertmanager" "smtp" "host" }}
+              smtp_from: {{ index .Values "packages" "prometheus-stack" "alertmanager" "smtp" "email" }}
+              smtp_auth_username: {{ index .Values "packages" "prometheus-stack" "alertmanager" "smtp" "email" }}
+              smtp_auth_password: {{ index .Values "packages" "prometheus-stack" "alertmanager" "smtp" "password" }}
+            {{- end }}
+            {{- if index .Values "packages" "prometheus-stack" "alertmanager" "route" "enabled" }}
+            route:
+              {{- if index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultReceiver" }}
+              receiver: {{ index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultReceiver" }}
+              {{- end }}
+              {{- if index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultGroupBy" }}
+              group_by: {{ index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultGroupBy" }}
+              {{- end }}
+              {{- if index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultGroupWait" }}
+              group_wait: {{ index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultGroupWait" }}
+              {{- end }}
+              {{- if index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultGroupInterval" }}
+              group_interval: {{ index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultGroupInterval" }}
+              {{- end }}
+              {{- if index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultRepeatInterval" }}
+              repeat_interval: {{ index .Values "packages" "prometheus-stack" "alertmanager" "route" "defaultRepeatInterval" }}
+              {{- end }}
+              {{- if index .Values "packages" "prometheus-stack" "alertmanager" "route" "childRoutes" 0 "receiver" }}
+              routes:
+                {{- range $receiversConfig := index .Values "packages" "prometheus-stack" "alertmanager" "route" "childRoutes" }}
+                - receiver: {{ $receiversConfig.receiver }}
+                  {{- if $receiversConfig.groupBy }}
+                  group_by: {{ $receiversConfig.groupBy }}
+                  {{- end }}
+                  {{- if $receiversConfig.groupWait }}
+                  group_wait: {{ $receiversConfig.groupWait }}
+                  {{- end }}
+                  {{- if $receiversConfig.groupInterval }}
+                  group_interval: {{ $receiversConfig.groupInterval }}
+                  {{- end }}
+                  {{- if $receiversConfig.repeatInterval }}
+                  repeat_interval: {{ $receiversConfig.repeatInterval }}
+                  {{- end }}
+                  {{- if $receiversConfig.continue }}
+                  continue: {{ $receiversConfig.continue }}
+                  {{- end }}
+                  {{- if and $receiversConfig.matchers (index $receiversConfig.matchers 0)}}
+                  matchers:
+                  {{- range $matchersConfig := $receiversConfig.matchers }}
+                    - {{ . }}
+                  {{- end }}
+                  {{- end }}
+                  {{- if and $receiversConfig.muteIntervals (index $receiversConfig.muteIntervals 0)}}
+                  mute_time_intervals:
+                  {{- range $muteIntervalConfig := $receiversConfig.muteIntervals }}
+                    - {{ . }}
+                  {{- end }}
+                  {{- end }}
+                  {{- if and $receiversConfig.activeIntervals (index $receiversConfig.activeIntervals 0)}}
+                  active_time_intervals:
+                  {{- range $activeIntervalConfig := $receiversConfig.activeIntervals }}
+                    - {{ . }}
+                  {{- end }}
+                  {{- end }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+            {{- if index .Values "packages" "prometheus-stack" "alertmanager" "timeIntervals" "enabled" }}
+            time_intervals:
+              {{- range $intervalConfig := index .Values "packages" "prometheus-stack" "alertmanager" "timeIntervals" "intervals" }}
+              - name: {{ $intervalConfig.name }}
+                time_intervals:
+                  {{- range $timesConfig := $intervalConfig.configurations }}
+                  - times:
+                    {{- range $hoursConfig := $timesConfig.times }}
+                    {{- if and $hoursConfig.startTime $hoursConfig.endTime }}
+                    - start_time: {{ $hoursConfig.startTime }}
+                      end_time: {{ $hoursConfig.endTime }}
+                    {{- end }}
+                    {{- end }}
+                    {{- if $timesConfig.weekdays }}
+                    weekdays: {{ $timesConfig.weekdays }}
+                    {{- end }}
+                    {{- if $timesConfig.daysOfMonths }}
+                    days_of_month: {{ $timesConfig.daysOfMonths }}
+                    {{- end }}
+                    {{- if $timesConfig.months }}
+                    months: {{ $timesConfig.months }}
+                    {{- end }}
+                    {{- if $timesConfig.years }}
+                    years: {{ $timesConfig.years }}
+                    {{- end }}
+                    {{- if $timesConfig.location }}
+                    location: {{ $timesConfig.location }}
+                    {{- end }}
+                  {{- end }}
+              {{- end }}
+            {{- end }}
+            receivers:
+              - name: 'null'
+              {{- if index .Values "packages" "prometheus-stack" "alertmanager" "receivers" "teams" "enabled" }}
+              {{- range $teamsConfig := index .Values "packages" "prometheus-stack" "alertmanager" "receivers" "teams" "configurations" }}
+              {{- if $teamsConfig.name }}
+              - name: {{ $teamsConfig.name }}
+                msteams_configs:
+                  {{- range $webhookConfig := $teamsConfig.webhook }}
+                  - webhook_url: {{ $webhookConfig.url }}
+                    send_resolved: {{ $webhookConfig.sendResolved }}
+                  {{- end }}
+              {{- end }}
+              {{- end }}
+              {{- end }}
+              {{- if and (index .Values "packages" "prometheus-stack" "alertmanager" "smtp" "enabled") (index .Values "packages" "prometheus-stack" "alertmanager" "receivers" "mail" "enabled") }}
+              {{- range $mailConfig := index .Values "packages" "prometheus-stack" "alertmanager" "receivers" "mail" "configurations" }}
+              {{- if $mailConfig.name }}
+              - name: {{ $mailConfig.name }}
+                email_configs:
+                {{- range $toConfig := $mailConfig.to }}
+                  - to: {{ $toConfig.mailAddress }}
+                    send_resolved: {{ $toConfig.sendResolved }}
+                {{- end }}
+              {{- end }}
+              {{- end }}
+              {{- end }}
+        {{- end }}
+        {{- if index .Values "packages" "prometheus-stack" "alertmanager" "additionalAlertRules" "enabled" }}
+        additionalPrometheusRulesMap:
+          rule-name:
+            groups:
+              {{- range $groupRules := index .Values "packages" "prometheus-stack" "alertmanager" "additionalAlertRules" "rules" }}
+              - name: {{ $groupRules.groupName }}
+                rules:
+                  {{- range $rule := $groupRules.rules }}
+                  - alert: {{ $rule.name }}
+                    expr: {{ $rule.expression }}
+                    for: {{ $rule.for }}
+                    labels:
+                      severity: {{ $rule.severity }}
+                    {{- if or $rule.description $rule.summary }}
+                    annotations:
+                      {{- if $rule.description }}
+                      description: {{ $rule.description }}
+                      {{- end }}
+                      {{- if $rule.summary }}
+                      summary: {{ $rule.summary }}
+                      {{- end }}
+                    {{- end }}
+                  {{- end }}
+              {{- end }}
+        {{- end }}
   destination:
     server: {{ .Values.kubernetes.server }}
     namespace: {{ .Release.Namespace }}

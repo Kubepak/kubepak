@@ -16,3 +16,69 @@ packages:
           providers:
             generic: {}
             microsoft: {}
+    alertmanager:
+      enabled: false
+      smtp:
+        enabled: false
+        host:
+        email:
+        password:
+      receivers:
+        teams:
+          enabled: false
+          configurations:
+          - name:
+            webhook:
+              - url:
+                sendResolved: false
+        mail:
+          enabled: false
+          configurations:
+          - name:
+            to:
+              - mailAddress:
+                sendResolved: false
+      timeIntervals:
+        enabled: false
+        intervals:
+        - name:
+          configurations:
+            - times:
+              - startTime:
+                endTime:
+              weekdays: []
+              daysOfMonths: []
+              months: []
+              years: []
+              location: America/Montreal
+      route:
+        enabled: false
+        defaultReceiver:
+        defaultGroupBy: [namespace]
+        defaultGroupWait: 30s
+        defaultGroupInterval: 5m
+        defaultRepeatInterval: 4h
+        childRoutes:
+          - receiver:
+            groupBy: []
+            groupWait:
+            groupInterval:
+            repeatInterval:
+            continue: false
+            activeIntervals:
+              -
+            muteIntervals:
+              -
+            matchers:
+              -
+      additionalAlertRules:
+        enabled: false
+        rules:
+        - groupName:
+          rules:
+            - name:
+              expression:
+              for:
+              severity:
+              summary:
+              description:
