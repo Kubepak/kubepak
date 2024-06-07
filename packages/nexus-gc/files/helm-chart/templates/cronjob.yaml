@@ -1,0 +1,26 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  #name: nexusgc-job
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: "{{ index .Values "packages" "nexus-gc" "cronjobs"  "schedule" }}"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 10 }}
+          containers:
+          - name: nexusgc
+            image: nexusgc:latest
+            # image: docker.nexus.dev.infra.genx.local:8443/nexus-gc:0.0.1
+            imagePullPolicy: IfNotPresent
+          restartPolicy: Never
+...

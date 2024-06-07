@@ -315,3 +315,18 @@ nexus_security_user_tokens_enable() {
         "service/rest/v1/security/user-tokens" \
         "${__json_config}" >/dev/null
 }
+
+nexus_rpc() {
+    local __admin_username="${1}"
+    local __admin_password="${2}"
+    local __api_base_url="${3}"
+    local __json_config="${4}"
+
+    __nexus_rest_api \
+        "PUT" \
+        "${__admin_username}" \
+        "${__admin_password}" \
+        "${__api_base_url}" \
+        "service/extdirect" \
+        "${__json_config}" >/dev/null
+}

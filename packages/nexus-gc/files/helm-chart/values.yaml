@@ -1,0 +1,4 @@
+packages:
+  nexus-gc:
+    cronjobs:
+      schedule: "*/2 * * * *"

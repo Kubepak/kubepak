@@ -38,7 +38,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __NEXUS_CHART_VERSION="68.1.0"
+readonly __NEXUS_CHART_VERSION="69.0.0"
 
 readonly -A __NEXUS_API_LUT=(
     ["01,.nexus.api.blobstores.azure"]="nexus_blobstore_create_update,true,azure"
@@ -66,12 +66,13 @@ readonly -A __NEXUS_API_LUT=(
     ["23,.nexus.api.repositories.pypi.group"]="nexus_repository_create_update,true,pypi,group"
     ["24,.nexus.api.repositories.pypi.hosted"]="nexus_repository_create_update,true,pypi,hosted"
     ["25,.nexus.api.repositories.pypi.proxy"]="nexus_repository_create_update,true,pypi,proxy"
-    ["26,.nexus.api.security.anonymous"]="nexus_security_anonymous_enable,false"
-    ["27,.nexus.api.security.realms.active"]="nexus_security_realms_activate,false"
-    ["28,.nexus.api.security.roles"]="nexus_security_role_create_update,true"
-    ["29,.nexus.api.security.saml"]="nexus_security_saml_create_update,false"
-    ["30,.nexus.api.security.users"]="nexus_security_user_create_update,true"
-    ["31,.nexus.api.security.user-tokens"]="nexus_security_user_tokens_enable,false"
+    ["26,.nexus.api.rpc"]="nexus_rpc,true"
+    ["27,.nexus.api.security.anonymous"]="nexus_security_anonymous_enable,false"
+    ["28,.nexus.api.security.realms.active"]="nexus_security_realms_activate,false"
+    ["29,.nexus.api.security.roles"]="nexus_security_role_create_update,true"
+    ["30,.nexus.api.security.saml"]="nexus_security_saml_create_update,false"
+    ["31,.nexus.api.security.users"]="nexus_security_user_create_update,true"
+    ["32,.nexus.api.security.user-tokens"]="nexus_security_user_tokens_enable,false"
 )
 
 #-----------------------------------------------------------------------------
