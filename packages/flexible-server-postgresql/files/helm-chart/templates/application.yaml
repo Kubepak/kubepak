@@ -1,0 +1,101 @@
+---
+apiVersion: dbforpostgresql.azure.upbound.io/v1beta1
+kind: FlexibleServer
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+spec:
+  forProvider:
+    administratorLogin: {{ required "databaseEngines.administratorLogin required" "dbuser" }}
+    administratorPasswordSecretRef:
+      namespace: {{ required "databaseEngines.administratorPasswordSecretRef.namespace required" .Release.Namespace }}
+      name: {{ required "secret name required" (printf "%s-db-secret" .Release.Name) }}
+      key: {{ required "secret key required" "credentials" }}
+    {{- if index .Values "packages" "flexible-server-postgresql" "autoGeneratePassword" }}
+    autoGeneratePassword: {{ index .Values "packages" "flexible-server-postgresql" "autoGeneratePassword" }}
+    {{- end }}
+    autoGrowEnabled: {{ index .Values "packages" "flexible-server-postgresql" "autoGrowEnabled" }}
+    {{- if index .Values "packages" "flexible-server-postgresql" "authentication" "activeDirectoryAuthEnabled" }}
+    authentication:
+      activeDirectoryAuthEnabled: {{ index .Values "packages" "flexible-server-postgresql" "authentication" "activeDirectoryAuthEnabled" }}
+      passwordAuthEnabled: {{ index .Values "packages" "flexible-server-postgresql" "authentication" "passwordAuthEnabled" }}
+      tenantId: {{ index .Values "packages" "flexible-server-postgresql" "authentication" "tenantId" }}
+    {{- end }}
+    backupRetentionDays: {{  index .Values "packages" "flexible-server-postgresql" "backupRetentionDays" }}
+    createMode: {{ required "createMode required"  (index .Values "packages" "flexible-server-postgresql" "createMode") }}
+    {{- if and (index .Values "packages" "flexible-server-postgresql" "customerManagedKey") (gt (len  (index .Values "packages" "flexible-server-postgresql" "customerManagedKey")) 0) (index .Values "packages" "flexible-server-postgresql" "customerManagedKey" 0 "keyVaultKeyId") }}
+    customerManagedKey:
+      {{- range index .Values "packages" "flexible-server-postgresql" "customerManagedKey" }}
+      - keyVaultKeyId: {{ required "customerManagedKey.keyVaultKeyId required" index .Values "packages" "flexible-server-postgresql" "customerManagedKey" "keyVaultKeyId" }}
+        {{- if index .Values "packages" "flexible-server-postgresql" "customerManagedKey" "userAssignedIdentityId" }}
+        userAssignedIdentityId: {{ index .Values "packages" "flexible-server-postgresql" "customerManagedKey" "userAssignedIdentityId" }}
+        {{- end }}
+        {{- if index .Values "packages" "flexible-server-postgresql" "customerManagedKey" "geoBackupKeyVaultKeyId" }}
+        geoBackupKeyVaultKeyId: {{ index .Values "packages" "flexible-server-postgresql" "customerManagedKey" "geoBackupKeyVaultKeyId" }}
+        {{- end }}
+        {{- if index .Values "packages" "flexible-server-postgresql" "customerManagedKey" "geoBackupUserAssignedIdentityId" }}
+        geoBackupUserAssignedIdentityId: {{ index .Values "packages" "flexible-server-postgresql" "customerManagedKey" "geoBackupUserAssignedIdentityId" }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+    {{- if index .Values "packages" "flexible-server-postgresql" "delegatedSubnetId" }}
+    delegatedSubnetId: {{ index .Values "packages" "flexible-server-postgresql" "delegatedSubnetId" }}
+    delegatedSubnetIdRef:
+      name: {{ index .Values "packages" "flexible-server-postgresql" "delegatedSubnetIdRef" "name" }}
+    {{- end }}
+    {{- if index .Values "packages" "flexible-server-postgresql" "geoRedundantBackup" }}
+    geoRedundantBackupEnabled: {{ index .Values "packages" "flexible-server-postgresql" "geoRedundantBackup" }}
+    {{- end }}
+    {{- if and (index .Values "packages" "flexible-server-postgresql" "highAvailability" ) (gt (len (index .Values "packages" "flexible-server-postgresql" "highAvailability")) 0) (index .Values "packages" "flexible-server-postgresql" "highAvailability"  0 "mode") }}
+    highAvailability:
+      {{- range index .Values "packages" "flexible-server-postgresql" "highAvailability" }}
+      {{- if .mode}}
+      - mode: {{ required "highAvailability.mode required"  .mode }}
+        standbyAvailabilityZone: {{ .standbyAvailabilityZone | quote }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
+    location: {{ required "Location required" (index .Values "packages" "flexible-server-postgresql" "location") }}
+    {{- if index .Values "packages" "flexible-server-postgresql" "maintenanceWindow" }}
+    maintenanceWindow:
+      - dayOfWeek: {{ required "maintenanceWindow.dayOfWeek required (0 = Sunday)" (index .Values "packages" "flexible-server-postgresql" "maintenanceWindow" "dayOfWeek") }}
+        startHour: {{ required "maintenanceWindow.startHour required" (index .Values "packages" "flexible-server-postgresql" "maintenanceWindow" "startHour") }}
+        startMinute: {{ required "maintenanceWindow.startMinute required"  (index .Values "packages" "flexible-server-postgresql" "maintenanceWindow" "startMinute") }}
+    {{- end }}
+    {{- if  index .Values "packages" "flexible-server-postgresql" "pointInTimeRestoreTimeInUtc" }}
+    pointInTimeRestoreTimeInUtc: {{ index .Values "packages" "flexible-server-postgresql" "pointInTimeRestoreTimeInUtc" | quote }}
+    {{- end }}
+    {{- if index .Values "packages" "flexible-server-postgresql" "privateDnsZoneId" }}
+    privateDnsZoneId: {{ index .Values "packages" "flexible-server-postgresql" "privateDnsZoneId" }}
+    privateDnsZoneIdRef:
+      name: {{ index .Values "packages" "flexible-server-postgresql" "privateDnsZoneIdRef" "name" }}
+    {{- end }}
+    resourceGroupName: {{ required "databaseEngines.resourceGroupName required" (index .Values "packages" "flexible-server-postgresql" "resourceGroupName") }}
+    {{- if and (eq .createMode "Replica") (hasPrefix "B" (index .Values "packages" "flexible-server-postgresql" "skuName")) }}
+      {{- fail "Replica only available SKU Name starting with GP and MO (ex. GP_Standard_D2s_v3, MO_Standard_E4s_v3). The sourceServerId must also respect this if field is needed." }}
+    {{- end }}
+    skuName: {{ required "skuName is required" (index .Values "packages" "flexible-server-postgresql" "skuName") }}
+    {{- if or (eq (index .Values "packages" "flexible-server-postgresql" "createMode") "PointInTimeRestore") (eq (index .Values "packages" "flexible-server-postgresql" "createMode") "GeoRestore") (eq (index .Values "packages" "flexible-server-postgresql" "createMode") "Replica") }}
+    sourceServerId: {{ printf "/subscriptions/%s/resourceGroups/%s/providers/%s/flexibleServers/%s" (index .Values "packages" "flexible-server-postgresql" "subcription") (index .Values "packages" "flexible-server-postgresql" "resourceGroupName") ("Microsoft.DBforMySQL") ( index .Values "packages" "flexible-server-postgresql" "sourceServerName" | lower) | quote }}
+    {{- end }}
+    storageMb: {{ index .Values "packages" "flexible-server-postgresql" "storageMb" }}
+    version: {{ required "MySQL version is required" (index .Values "packages" "flexible-server-postgresql" "version") | quote }}
+    {{- if index .Values "packages" "flexible-server-postgresql" "tags" }}
+    tags:
+      {{- range index .Values "packages" "flexible-server-postgresql" "tags" }}
+        {{ .key }}: {{ .value }}
+      {{- end }}
+    {{- end }}
+    {{- if index .Values "packages" "flexible-server-postgresql" "availabilityZone" }}
+    zone: {{ index .Values "packages" "flexible-server-postgresql" "availabilityZone" | quote }}
+    {{- end }}
+  providerConfigRef:
+    name: {{ index .Values "packages" "flexible-server-postgresql" "providerConfigRef" "name" }}
+  writeConnectionSecretToRef:
+    name: {{ index .Values "packages" "flexible-server-postgresql" "writeConnectionSecretToRef" "name" }}
+    namespace: {{ .Release.Namespace }}
+---

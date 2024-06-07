@@ -1,0 +1,47 @@
+---
+packages:
+  flexible-server-postgresql:
+    authentication:
+      activeDirectoryAuthEnabled:
+      passwordAuthEnabled:
+      tenantId:
+    availabilityZone: 2
+    autoGeneratePassword: true
+    autoGrowEnabled: true
+    backupRetentionDays: 7
+    createMode:
+    customerManagedKey:
+      - keyVaultKeyId:
+        userAssignedIdentityId:
+        customerManagedKey:
+        geoBackupUserAssignedIdentityId:
+    delegatedSubnetId:
+    delegatedSubnetIdRef:
+      name:
+    geoRedundantBackup: false
+    highAvailability:
+      - mode: SameZone
+        standbyAvailabilityZone:
+    location:
+    lockLevel: CanNotDelete
+    maintenanceWindow:
+      dayOfWeek: 0
+      startHour: 0
+      startMinute: 0
+    pointInTimeRestoreTimeInUtc:
+    privateDnsZoneId:
+    privateDnsZoneIdRef:
+      name:
+    providerConfigRef:
+      name: crossplane-azure-provider
+    resourceGroupName:
+    skuName:
+    sourceServerName:
+    storageMb: 262144
+    subscription:
+    tags:
+      - key: "Project"
+        value: "ProjectFoo"
+    version:
+    writeConnectionSecretToRef:
+      name:

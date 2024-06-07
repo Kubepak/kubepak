@@ -1,0 +1,9 @@
+apiVersion: database.example.com/v1alpha1
+kind: MySQLInstance
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  writeConnectionSecretToRef:
+    # This will create a secret with name `crossplane-db-credentials`
+    name: crossplane-db-credentials

@@ -1,0 +1,17 @@
+---
+apiVersion: authorization.azure.upbound.io/v1beta1
+kind: ManagementLock
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  forProvider:
+    name: "crossplane-azure-provider-dbformysql"
+    lockLevel: {{ index .Values "packages" "flexible-server-mysql" "lockLevel" }}
+    scope: {{ printf "/subscriptions/%s/resourceGroups/%s/providers/%s/flexibleServers/%s" (index .Values "packages" "flexible-server-mysql" "subscription")  (index .Values "packages" "flexible-server-mysql" "resourceGroupName")  "Microsoft.DBforMySQL" .Release.Name }}
+...

@@ -1,0 +1,45 @@
+packages:
+  flexible-server-mysql:
+    availabilityZone:
+    autoGeneratePassword:
+    backupRetentionDays: 7
+    createMode:
+    customerManagedKey:
+      - keyVaultKeyId:
+        userAssignedIdentityId:
+        customerManagedKey:
+        geoBackupUserAssignedIdentityId:
+    delegatedSubnetId:
+    delegatedSubnetIdRef:
+      name:
+    geoRedundantBackup: false
+    highAvailability:
+      - mode: SameZone
+        standbyAvailabilityZone: 2
+    location:
+    lockLevel: CanNotDelete
+    maintenanceWindow:
+      dayOfWeek: 0
+      startHour: 0
+      startMinute: 0
+    pointInTimeRestoreTimeInUtc:
+    privateDnsZoneId:
+    privateDnsZoneIdRef:
+      name:
+    providerConfigRef:
+      name: crossplane-azure-provider
+    resourceGroupName:
+    skuName:
+    sourceServerName:
+    storage:
+      autoGrowautoGrowEnabled: true
+      iops: 20000
+      sizeGb: 256
+    subscription:
+    tags:
+      - key: "Project"
+        value: "ProjectFoo"
+    version:
+    writeConnectionSecretToRef:
+      name:
+

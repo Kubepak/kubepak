@@ -1,0 +1,188 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  labels:
+    crossplane.io/xrd: xpostgresqlinstances.database.example.com
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: azure-mysql
+  name: {{ .Release.Name }}-composition
+  namespace: dev-flexible-server-mysql
+spec:
+  compositeTypeRef:
+    apiVersion: database.example.com/v1alpha1
+    kind: XMySQLInstance
+  resources:
+  - base:
+      apiVersion: dbformysql.azure.upbound.io/v1beta1
+      kind: FlexibleServer
+      spec:
+        forProvider:
+          administratorLogin: {{ required "databaseEngines.administratorLogin required" "dbuser" }}
+          administratorPasswordSecretRef:
+            namespace: {{ required "databaseEngines.administratorPasswordSecretRef.namespace required" .Release.Namespace }}
+            name: {{ required "secret name required" (printf "%s-db-secret" .Release.Name) }}
+            key: {{ required "secret key required" "credentials" }}
+          {{- if index .Values "packages" "flexible-server-mysql" "autoGeneratePassword" }}
+          autoGeneratePassword: {{ index .Values "packages" "flexible-server-mysql" "autoGeneratePassword" }}
+          {{- end }}
+          backupRetentionDays: {{  index .Values "packages" "flexible-server-mysql" "backupRetentionDays" }}
+          {{- if and (index .Values "packages" "flexible-server-mysql" "customerManagedKey") (gt (len  (index .Values "packages" "flexible-server-mysql" "customerManagedKey")) 0) (index .Values "packages" "flexible-server-mysql" "customerManagedKey" 0 "keyVaultKeyId") }}
+          createMode: {{ required "createMode required"  (index .Values "packages" "flexible-server-mysql" "createMode") }}
+          customerManagedKey:
+            {{- range index .Values "packages" "flexible-server-mysql" "customerManagedKey" }}
+            - keyVaultKeyId: {{ required "customerManagedKey.keyVaultKeyId required" index .Values "packages" "flexible-server-mysql" "customerManagedKey" "keyVaultKeyId" }}
+              {{- if index .Values "packages" "flexible-server-mysql" "customerManagedKey" "userAssignedIdentityId" }}
+              userAssignedIdentityId: {{ index .Values "packages" "flexible-server-mysql" "customerManagedKey" "userAssignedIdentityId" }}
+              {{- end }}
+              {{- if index .Values "packages" "flexible-server-mysql" "customerManagedKey" "geoBackupKeyVaultKeyId" }}
+              geoBackupKeyVaultKeyId: {{ index .Values "packages" "flexible-server-mysql" "customerManagedKey" "geoBackupKeyVaultKeyId" }}
+              {{- end }}
+              {{- if index .Values "packages" "flexible-server-mysql" "customerManagedKey" "geoBackupUserAssignedIdentityId" }}
+              geoBackupUserAssignedIdentityId: {{ index .Values "packages" "flexible-server-mysql" "customerManagedKey" "geoBackupUserAssignedIdentityId" }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- if index .Values "packages" "flexible-server-mysql" "delegatedSubnetId" }}
+          delegatedSubnetId: {{ index .Values "packages" "flexible-server-mysql" "delegatedSubnetId" }}
+          delegatedSubnetIdRef:
+            name: {{ index .Values "packages" "flexible-server-mysql" "delegatedSubnetIdRef" "name" }}
+          {{- end }}
+          {{- if index .Values "packages" "flexible-server-mysql" "geoRedundantBackup" }}
+          geoRedundantBackupEnabled: {{ index .Values "packages" "flexible-server-mysql" "geoRedundantBackup" }}
+          {{- end }}
+          {{- if and (index .Values "packages" "flexible-server-mysql" "highAvailability" ) (gt (len (index .Values "packages" "flexible-server-mysql" "highAvailability")) 0) (index .Values "packages" "flexible-server-mysql" "highAvailability"  0 "mode") }}
+          highAvailability:
+            {{- range index .Values "packages" "flexible-server-mysql" "highAvailability" }}
+            {{- if .mode}}
+            - mode: {{ required "highAvailability.mode required"  .mode }}
+              standbyAvailabilityZone: {{ .standbyAvailabilityZone | quote }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+          location: {{ required "Location required" (index .Values "packages" "flexible-server-mysql" "location") }}
+          {{- if index .Values "packages" "flexible-server-mysql" "maintenanceWindow" }}
+          maintenanceWindow:
+            - dayOfWeek: {{ required "maintenanceWindow.dayOfWeek required (0 = Sunday)" (index .Values "packages" "flexible-server-mysql" "maintenanceWindow" "dayOfWeek") }}
+              startHour: {{ required "maintenanceWindow.startHour required" (index .Values "packages" "flexible-server-mysql" "maintenanceWindow" "startHour") }}
+              startMinute: {{ required "maintenanceWindow.startMinute required"  (index .Values "packages" "flexible-server-mysql" "maintenanceWindow" "startMinute") }}
+          {{- end }}
+          {{- if  index .Values "packages" "flexible-server-mysql" "pointInTimeRestoreTimeInUtc" }}
+          pointInTimeRestoreTimeInUtc: {{ index .Values "packages" "flexible-server-mysql" "pointInTimeRestoreTimeInUtc" | quote }}
+          {{- end }}
+          {{- if  index .Values "packages" "flexible-server-mysql" "privateDnsZoneId" }}
+          privateDnsZoneId: {{ index .Values "packages" "flexible-server-mysql" "privateDnsZoneId" }}
+          privateDnsZoneIdRef:
+            name: {{ index .Values "packages" "flexible-server-mysql" "privateDnsZoneIdRef" "name" }}
+          {{- end }}
+          resourceGroupName: {{ required "databaseEngines.resourceGroupName required" (index .Values "packages" "flexible-server-mysql" "resourceGroupName") }}
+          {{- if and (eq .createMode "Replica") (hasPrefix "B" (index .Values "packages" "flexible-server-mysql" "skuName")) }}
+            {{- fail "Replica only available SKU Name starting with GP and MO (ex. GP_Standard_D2s_v3, MO_Standard_E4s_v3). The sourceServerId must also respect this if field is needed." }}
+          {{- end }}
+          skuName: {{ required "skuName is required" (index .Values "packages" "flexible-server-mysql" "skuName") }}
+          {{- if or (eq (index .Values "packages" "flexible-server-mysql" "createMode") "PointInTimeRestore") (eq (index .Values "packages" "flexible-server-mysql" "createMode") "GeoRestore") (eq (index .Values "packages" "flexible-server-mysql" "createMode") "Replica") }}
+          sourceServerId: {{ printf "/subscriptions/%s/resourceGroups/%s/providers/%s/flexibleServers/%s" (index .Values "packages" "flexible-server-mysql" "subcription") (index .Values "packages" "flexible-server-mysql" "resourceGroupName") ("Microsoft.DBforMySQL") ( index .Values "packages" "flexible-server-mysql" "sourceServerName" | lower) | quote }}
+          {{- end }}
+          storage:
+            - autoGrowEnabled: {{ required "storage.autoGrowautoGrowEnabled required" (index .Values "packages" "flexible-server-mysql" "storage" "autoGrowautoGrowEnabled") }}
+              {{- if or (gt (int (index .Values "packages" "flexible-server-mysql" "storage" "iops")) 20000) (lt (int (index .Values "packages" "flexible-server-mysql" "storage" "iops")) 360) }}
+                {{- fail "20000 >= storage.iops >= 360" }}
+              {{- end }}
+              iops: {{ index .Values "packages" "flexible-server-mysql" "storage" "iops" }}
+              {{- if or (gt (int  (index .Values "packages" "flexible-server-mysql" "storage" "sizeGb")) 16384) (lt (int (index .Values "packages" "flexible-server-mysql" "storage" "sizeGb")) 20) }}
+                {{- fail "16384 >= storage.sizeGb >= 20" }}
+              {{- end }}
+              sizeGb: {{ index .Values "packages" "flexible-server-mysql" "storage" "sizeGb" | int64 }}
+          {{- if index .Values "packages" "flexible-server-mysql" "tags" }}
+          tags:
+            {{- range index .Values "packages" "flexible-server-mysql" "tags" }}
+              {{ .key }}: {{ .value }}
+            {{- end }}
+          {{- end }}
+          version: {{ required "MySQL version is required" (index .Values "packages" "flexible-server-mysql" "version") | quote }}
+          {{- if index .Values "packages" "flexible-server-mysql" "availabilityZone" }}
+          zone: {{ index .Values "packages" "flexible-server-mysql" "availabilityZone" | quote }}
+          {{- end }}
+        providerConfigRef:
+          name: {{ index .Values "packages" "flexible-server-mysql" "providerConfigRef" "name" }}
+        writeConnectionSecretToRef:
+          namespace: {{ .Release.Namespace }}
+    connectionDetails:                                          # This will make the connectionDetails available to the composition
+    - name: username
+      fromFieldPath: spec.forProvider.administratorLogin
+    - name: password
+      fromConnectionSecretKey: password
+      # fromConnectionSecretKey: "attribute.administrator_password"
+    - name: endpoint
+      fromFieldPath: status.atProvider.fqdn
+    - name: port
+      type: FromValue
+      value: "3306"
+    name: mysqlinstance
+    patches:
+    - fromFieldPath: metadata.uid
+      toFieldPath: spec.writeConnectionSecretToRef.name
+      transforms:
+      - string:
+          fmt: '%s-mysqlinstance'                          # This will create a secret per resource with name `metadata.uid`-mysqlinstance
+          type: Format
+        type: string
+      type: FromCompositeFieldPath
+    # set the secret name to the claim name
+    # - fromFieldPath: "metadata.labels[crossplane.io/claim-name]"
+    #   toFieldPath: "spec.writeConnectionSecretToRef.name"
+      # transforms:
+      #   - type: string
+      #     string:
+      #       fmt: "%s-mysqlinstance"
+    # change secret namespace to the one of the claim
+    - fromFieldPath: "metadata.labels[crossplane.io/claim-namespace]"
+      toFieldPath: "spec.writeConnectionSecretToRef.namespace"
+  writeConnectionSecretsToNamespace: dev-crossplane          # This will create a secret per composition with name `metadata.uid` in namespace `crossplane-system`
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: xmysqlinstances.database.example.com
+spec:
+  claimNames:
+    kind: MySQLInstance
+    plural: mysqlinstances
+  connectionSecretKeys:                                         # (optional) This will make these keys available in the connectionSecret
+  - username
+  - password
+  - endpoint
+  - port
+  defaultCompositionRef:
+    name: {{ .Release.Name }}-composition
+  group: database.example.com
+  names:
+    kind: XMySQLInstance
+    plural: xmysqlinstances
+  versions:
+  - name: v1alpha1
+    referenceable: true
+    served: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+              endpoint:
+                type: string
+              port:
+                type: string

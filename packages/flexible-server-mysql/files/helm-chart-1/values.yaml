@@ -1,0 +1,5 @@
+packages:
+  flexible-server-mysql:
+    lockLevel: CanNotDelete
+    resourceGroupName: poc-crossplane
+    subscription: aa3ae2aa-9e5b-4e2b-b8e4-b7b42262cbb4
