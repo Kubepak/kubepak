@@ -1,0 +1,9 @@
+packages:
+  promtail:
+    image:
+      registry:
+      repository:
+      tag:
+    clients:
+      - url: http://loki-gateway.dev-loki.svc.cluster.local
+        tenantName: loki

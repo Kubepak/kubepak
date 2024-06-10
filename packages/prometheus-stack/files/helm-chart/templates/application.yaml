@@ -84,6 +84,23 @@ spec:
               role_attribute_strict: true
               {{- end }}
             {{- end }}
+          {{- if index .Values "packages" "prometheus-stack" "grafana" "dataSources" 0 "name" }}
+          additionalDataSources:
+            {{- range $index, $dataSource := index .Values "packages" "prometheus-stack" "grafana" "dataSources" }}
+            - name: {{ $dataSource.name }}
+              type: {{ $dataSource.type }}
+              uid: {{ lower $dataSource.name }}
+              url: {{ $dataSource.url }}
+              access: proxy
+              orgId: 1
+              {{- if $dataSource.tenantName }}
+              jsonData:
+                httpHeaderName1: X-Scope-OrgID
+              secureJsonData:
+                httpHeaderValue1: {{ $dataSource.tenantName }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
   destination:
     server: {{ .Values.kubernetes.server }}
     namespace: {{ .Release.Namespace }}

@@ -1,0 +1,552 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ .Values.environment }}-argo-cd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    targetRevision: {{ .Values.packages.loki.chartVersion }}
+    chart: loki
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if .Values.packages.loki.image.registry }}
+        - name: loki.image.registry
+          value: "{{ .Values.packages.loki.image.registry }}"
+        {{- end }}
+        {{- if .Values.packages.loki.image.repository }}
+        - name: loki.image.repository
+          value: "{{ .Values.packages.loki.image.repository }}"
+        {{- end }}
+        {{- if .Values.packages.loki.image.tag }}
+        - name: loki.image.tag
+          value: "{{ .Values.packages.loki.image.tag }}"
+        {{- end }}
+      values: |
+        monitoring:
+          serviceMonitor:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            labels:
+              release: prometheus-stack
+        lokiCanary:
+          enabled: false
+        test:
+          enabled: false
+        deploymentMode: {{ .Values.packages.loki.deploymentMode }}
+        auth_enabled: {{ .Values.packages.loki.multiTenant }}
+        minio:
+          enabled: {{ not (.Values.packages.loki.storage.azure.enabled) }}
+        {{- if and (index .Values.packages.loki.storage.logSuppression.enabled) (index .Values.packages.loki.storage.logSuppression.retentionPerTenant 0 "tenantName") }}
+        extraObjects:
+        - apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: loki-tenant-override-rules
+          data:
+            loki-tenant-override-rules.yaml: |-
+              overrides:
+              {{- range .Values.packages.loki.storage.logSuppression.retentionPerTenant }}
+                {{ .tenantName | quote }}:
+                  {{- if .defaultRetentionForTenant }}
+                  retention_period: {{ .defaultRetentionForTenant }}
+                  {{- end }}
+                  retention_stream:
+                    {{- range .logSteams }}
+                    - selector: {{ .selector | squote }}
+                      {{- if .priority }}
+                      priority: {{ .priority }}
+                      {{- end }}
+                      {{- if .retention }}
+                      period: {{ .retention }}
+                      {{- end }}
+                    {{- end }}
+              {{- end }}
+        {{- end }}
+        loki:
+          {{- if .Values.packages.loki.storage.logSuppression.enabled }}
+          compactor:
+            retention_enabled: true
+            working_directory: /var/loki/compactor
+            compaction_interval: 10m
+            retention_delete_delay: 2h
+            retention_delete_worker_count: 150
+            {{- if .Values.packages.loki.storage.azure.enabled }}
+            delete_request_store: azure
+            {{- else }}
+            delete_request_store: s3
+            {{- end }}
+          limits_config:
+            retention_period: 744h
+            per_tenant_override_config: /etc/loki/config/override/loki-tenant-override-rules.yaml
+          {{- end }}
+          commonConfig:
+            replication_factor: {{ .Values.packages.loki.storage.logReplication }}
+          {{- if .Values.packages.loki.storage.azure.enabled }}
+          storage:
+            bucketNames:
+              chunks: {{ required "Required when azure is enabled" .Values.packages.loki.storage.bucketNames.chunks }}
+              {{- if .Values.packages.loki.storage.bucketNames.ruler }}
+              ruler: {{ .Values.packages.loki.storage.bucketNames.ruler }}
+              {{- end }}
+            type: azure
+            azure:
+              {{- if .Values.packages.loki.storage.azure.accountName }}
+              accountName: {{ .Values.packages.loki.storage.azure.accountName }}
+              {{- end }}
+              {{- if .Values.packages.loki.storage.azure.accountKey }}
+              accountKey:  {{ .Values.packages.loki.storage.azure.accountKey }}
+              {{- end }}
+              {{- if .Values.packages.loki.storage.azure.connectionString }}
+              connectionString: {{ .Values.packages.loki.storage.azure.connectionString }}
+              {{- end }}
+              {{- if .Values.packages.loki.storage.azure.useManagedIdentity }}
+              useManagedIdentity: {{ .Values.packages.loki.storage.azure.useManagedIdentity }}
+              {{- end }}
+              {{- if .Values.packages.loki.storage.azure.useFederatedToken }}
+              useFederatedToken: {{ .Values.packages.loki.storage.azure.useFederatedToken }}
+              {{- end }}
+              {{- if .Values.packages.loki.storage.azure.userAssignedId }}
+              userAssignedId: {{ .Values.packages.loki.storage.azure.userAssignedId }}
+              {{- end }}
+              {{- if .Values.packages.loki.storage.azure.requestTimeout }}
+              requestTimeout: {{ .Values.packages.loki.storage.azure.requestTimeout }}
+              {{- end }}
+              {{- if .Values.packages.loki.storage.azure.endpointSuffix }}
+              endpointSuffix: {{ .Values.packages.loki.storage.azure.endpointSuffix }}
+              {{- end }}
+          {{- end }}
+          {{- if index .Values.packages.loki.schemaConfig 0 "from" }}
+          schemaConfig:
+            configs:
+              {{- range .Values.packages.loki.schemaConfig }}
+              - from: {{ .from }}
+                store: tsdb
+                object_store: {{ .objectStore }}
+                schema: v13
+                index:
+                  prefix: {{ .prefix }}
+                  period: 24h
+              {{- end }}
+          {{- else }}
+          schemaConfig:
+            configs:
+              - from: 2024-01-01
+                store: tsdb
+                {{- if .Values.packages.loki.storage.azure.enabled }}
+                object_store: azure
+                {{- else }}
+                object_store: s3
+                {{- end }}
+                schema: v13
+                index:
+                  prefix: index_
+                  period: 24h
+          {{- end }}
+          ingester:
+            chunk_encoding: {{ .Values.packages.loki.chunkEncoding }}
+          tracing:
+            enabled: true
+          querier:
+            max_concurrent: {{ .Values.packages.loki.maxConcurrentQuery }}
+        gateway:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.gateway.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.gateway.terminationGracePeriodSeconds }}
+          {{- if .Values.packages.loki.storage.logSuppression.enabled }}
+          extraVolumes:
+            - name: loki-tenant-override-rules
+              configMap:
+                name: loki-tenant-override-rules
+                items:
+                  - key: loki-tenant-override-rules.yaml
+                    path: loki-tenant-override-rules.yaml
+                defaultMode: 420
+          extraVolumeMounts:
+            - name: loki-tenant-override-rules
+              mountPath: /etc/loki/config/override
+          {{- end }}
+          {{- if .Values.packages.loki.gateway.autoscalling.enabled }}
+          autoscalling:
+            enabled: {{ .Values.packages.loki.gateway.autoscalling.enabled }}
+            minReplicas: {{ .Values.packages.loki.gateway.autoscalling.minReplicas }}
+            maxReplicas: {{ .Values.packages.loki.gateway.autoscalling.maxReplicas }}
+            {{- if .Values.packages.loki.gateway.autoscalling.targetCPUUtilizationPercentage }}
+            targetCPUUtilizationPercentage: {{ .Values.packages.loki.gateway.autoscalling.targetCPUUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.gateway.autoscalling.targetMemoryUtilizationPercentage }}
+            targetMemoryUtilizationPercentage: {{ .Values.packages.loki.gateway.autoscalling.targetMemoryUtilizationPercentage }}
+            {{- end }}
+            behavior:
+              scaleUp:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.gateway.autoscalling.scaleUpBehavior.stabilizationWindowSeconds }}
+                policies:
+                {{- range .Values.packages.loki.gateway.autoscalling.scaleUpBehavior.policies }}
+                - type: {{ .type }}
+                  value: {{ .value }}
+                  periodSeconds: {{ .periodSeconds }}
+                {{- end }}
+              scaleDown:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.gateway.autoscalling.scaleDownBehavior.stabilizationWindowSeconds }}
+                policies:
+                {{- range .Values.packages.loki.gateway.autoscalling.scaleDownBehavior.policies }}
+                - type: {{ .type }}
+                  value: {{ .value }}
+                  periodSeconds: {{ .periodSeconds }}
+                {{- end }}
+          {{- end }}
+        write:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.write.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.write.terminationGracePeriodSeconds }}
+          persistence:
+            enableStatefulSetAutoDeletePVC: {{ .Values.packages.loki.write.persistence.enableStatefulSetAutoDeletePVC }}
+            size: {{ .Values.packages.loki.write.persistence.size }}
+          {{- if .Values.packages.loki.storage.logSuppression.enabled }}
+          extraVolumes:
+            - name: loki-tenant-override-rules
+              configMap:
+                name: loki-tenant-override-rules
+                items:
+                  - key: loki-tenant-override-rules.yaml
+                    path: loki-tenant-override-rules.yaml
+                defaultMode: 420
+          extraVolumeMounts:
+            - name: loki-tenant-override-rules
+              mountPath: /etc/loki/config/override
+          {{- end }}
+          {{- if .Values.packages.loki.write.autoscalling.enabled }}
+          autoscalling:
+            enabled: {{ .Values.packages.loki.write.autoscalling.enabled }}
+            minReplicas: {{ .Values.packages.loki.write.autoscalling.minReplicas }}
+            maxReplicas: {{ .Values.packages.loki.write.autoscalling.maxReplicas }}
+            {{- if .Values.packages.loki.write.autoscalling.targetCPUUtilizationPercentage }}
+            targetCPUUtilizationPercentage: {{ .Values.packages.loki.write.autoscalling.targetCPUUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.write.autoscalling.targetMemoryUtilizationPercentage }}
+            targetMemoryUtilizationPercentage: {{ .Values.packages.loki.write.autoscalling.targetMemoryUtilizationPercentage }}
+            {{- end }}
+            behavior:
+              scaleUp:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.write.autoscalling.scaleUpBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.write.autoscalling.scaleUpBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+              scaleDown:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.write.autoscalling.scaleDownBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.write.autoscalling.scaleDownBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+          {{- end }}
+        read:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.read.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.read.terminationGracePeriodSeconds }}
+          persistence:
+            enableStatefulSetAutoDeletePVC: {{ .Values.packages.loki.read.persistence.enableStatefulSetAutoDeletePVC }}
+            size: {{ .Values.packages.loki.read.persistence.size }}
+          {{- if .Values.packages.loki.storage.logSuppression.enabled }}
+          extraVolumes:
+            - name: loki-tenant-override-rules
+              configMap:
+                name: loki-tenant-override-rules
+                items:
+                  - key: loki-tenant-override-rules.yaml
+                    path: loki-tenant-override-rules.yaml
+                defaultMode: 420
+          extraVolumeMounts:
+            - name: loki-tenant-override-rules
+              mountPath: /etc/loki/config/override
+          {{- end }}
+          {{- if .Values.packages.loki.read.autoscalling.enabled }}
+          autoscalling:
+            enabled: {{ .Values.packages.loki.read.autoscalling.enabled }}
+            minReplicas: {{ .Values.packages.loki.read.autoscalling.minReplicas }}
+            maxReplicas: {{ .Values.packages.loki.read.autoscalling.maxReplicas }}
+            {{- if .Values.packages.loki.read.autoscalling.targetCPUUtilizationPercentage }}
+            targetCPUUtilizationPercentage: {{ .Values.packages.loki.read.autoscalling.targetCPUUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.read.autoscalling.targetMemoryUtilizationPercentage }}
+            targetMemoryUtilizationPercentage: {{ .Values.packages.loki.read.autoscalling.targetMemoryUtilizationPercentage }}
+            {{- end }}
+            behavior:
+              scaleUp:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.read.autoscalling.scaleUpBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.read.autoscalling.scaleUpBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+              scaleDown:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.read.autoscalling.scaleDownBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.read.autoscalling.scaleDownBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+          {{- end }}
+        backend:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.backend.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.backend.terminationGracePeriodSeconds }}
+          persistence:
+            enableStatefulSetAutoDeletePVC: {{ .Values.packages.loki.backend.persistence.enableStatefulSetAutoDeletePVC }}
+            size: {{ .Values.packages.loki.backend.persistence.size }}
+          {{- if .Values.packages.loki.backend.autoscalling.enabled }}
+          autoscalling:
+            enabled: {{ .Values.packages.loki.backend.autoscalling.enabled }}
+            minReplicas: {{ .Values.packages.loki.backend.autoscalling.minReplicas }}
+            maxReplicas: {{ .Values.packages.loki.backend.autoscalling.maxReplicas }}
+            {{- if .Values.packages.loki.backend.autoscalling.targetCPUUtilizationPercentage }}
+            targetCPUUtilizationPercentage: {{ .Values.packages.loki.backend.autoscalling.targetCPUUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.backend.autoscalling.targetMemoryUtilizationPercentage }}
+            targetMemoryUtilizationPercentage: {{ .Values.packages.loki.backend.autoscalling.targetMemoryUtilizationPercentage }}
+            {{- end }}
+            behavior:
+              scaleUp:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.backend.autoscalling.scaleUpBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.backend.autoscalling.scaleUpBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+              scaleDown:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.backend.autoscalling.scaleDownBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.backend.autoscalling.scaleDownBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+          {{- end }}
+        distributor:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.distributor.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.distributor.terminationGracePeriodSeconds }}
+          {{- if .Values.packages.loki.distributor.autoscalling.enabled }}
+          autoscalling:
+            enabled: {{ .Values.packages.loki.distributor.autoscalling.enabled }}
+            minReplicas: {{ .Values.packages.loki.distributor.autoscalling.minReplicas }}
+            maxReplicas: {{ .Values.packages.loki.distributor.autoscalling.maxReplicas }}
+            {{- if .Values.packages.loki.distributor.autoscalling.targetCPUUtilizationPercentage }}
+            targetCPUUtilizationPercentage: {{ .Values.packages.loki.distributor.autoscalling.targetCPUUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.distributor.autoscalling.targetMemoryUtilizationPercentage }}
+            targetMemoryUtilizationPercentage: {{ .Values.packages.loki.distributor.autoscalling.targetMemoryUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.distributor.autoscalling.customMetrics }}
+            customMetrics:
+              {{- range .Values.packages.loki.distributor.autoscalling.customMetrics }}
+              {{- toYaml . | nindent 14 }}
+              {{- end }}
+            {{- end }}
+            behavior:
+              enabled: true
+              scaleUp:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.distributor.autoscalling.scaleUpBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.distributor.autoscalling.scaleUpBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+              scaleDown:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.distributor.autoscalling.scaleDownBehavior.policies }}
+                policies:
+                  {{- range .Values.packages.loki.distributor.autoscalling.scaleDownBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+          {{- end }}
+        querier:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.querier.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.querier.terminationGracePeriodSeconds }}
+          {{- if .Values.packages.loki.querier.persistence.enabled }}
+          persistence:
+            enabled: {{ .Values.packages.loki.querier.persistence.enabled }}
+            size: {{ .Values.packages.loki.querier.persistence.size }}
+          {{- end }}
+          {{- if .Values.packages.loki.querier.autoscalling.enabled }}
+          autoscalling:
+            enabled: {{ .Values.packages.loki.querier.autoscalling.enabled }}
+            minReplicas: {{ .Values.packages.loki.querier.autoscalling.minReplicas }}
+            maxReplicas: {{ .Values.packages.loki.querier.autoscalling.maxReplicas }}
+            {{- if .Values.packages.loki.querier.autoscalling.targetCPUUtilizationPercentage }}
+            targetCPUUtilizationPercentage: {{ .Values.packages.loki.querier.autoscalling.targetCPUUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.querier.autoscalling.targetMemoryUtilizationPercentage }}
+            targetMemoryUtilizationPercentage: {{ .Values.packages.loki.querier.autoscalling.targetMemoryUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.querier.autoscalling.customMetrics }}
+            customMetrics:
+              {{- range .Values.packages.loki.querier.autoscalling.customMetrics }}
+              {{- toYaml . | nindent 14 }}
+              {{- end }}
+            {{- end }}
+            behavior:
+              enabled: true
+              scaleUp:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.querier.autoscalling.scaleUpBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.querier.autoscalling.scaleUpBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+              scaleDown:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.querier.autoscalling.scaleDownBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.querier.autoscalling.scaleDownBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+          {{- end }}
+        queryFrontend:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.queryFrontend.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.queryFrontend.terminationGracePeriodSeconds }}
+          {{- if .Values.packages.loki.queryFrontend.autoscalling.enabled }}
+          autoscalling:
+            enabled: {{ .Values.packages.loki.queryFrontend.autoscalling.enabled }}
+            minReplicas: {{ .Values.packages.loki.queryFrontend.autoscalling.minReplicas }}
+            maxReplicas: {{ .Values.packages.loki.queryFrontend.autoscalling.maxReplicas }}
+            {{- if .Values.packages.loki.queryFrontend.autoscalling.targetCPUUtilizationPercentage }}
+            targetCPUUtilizationPercentage: {{ .Values.packages.loki.queryFrontend.autoscalling.targetCPUUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.queryFrontend.autoscalling.targetMemoryUtilizationPercentage }}
+            targetMemoryUtilizationPercentage: {{ .Values.packages.loki.queryFrontend.autoscalling.targetMemoryUtilizationPercentage }}
+            {{- end }}
+            {{- if .Values.packages.loki.queryFrontend.autoscalling.customMetrics }}
+            customMetrics:
+              {{- range .Values.packages.loki.queryFrontend.autoscalling.customMetrics }}
+              {{- toYaml . | nindent 14 }}
+              {{- end }}
+            {{- end }}
+            behavior:
+              enabled: true
+              scaleUp:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.queryFrontend.autoscalling.scaleUpBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.queryFrontend.autoscalling.scaleUpBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+              scaleDown:
+                stabilizationWindowSeconds: {{ .Values.packages.loki.queryFrontend.autoscalling.scaleDownBehavior.stabilizationWindowSeconds }}
+                policies:
+                  {{- range .Values.packages.loki.queryFrontend.autoscalling.scaleDownBehavior.policies }}
+                  - type: {{ .type }}
+                    value: {{ .value }}
+                    periodSeconds: {{ .periodSeconds }}
+                  {{- end }}
+          {{- end }}
+        queryScheduler:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.queryScheduler.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.queryScheduler.terminationGracePeriodSeconds }}
+        indexGateway:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.indexGateway.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.indexGateway.terminationGracePeriodSeconds }}
+          {{- if .Values.packages.loki.indexGateway.persistence.enabled }}
+          persistence:
+            enabled: {{ .Values.packages.loki.indexGateway.persistence.enabled }}
+            enableStatefulSetAutoDeletePVC: {{ .Values.packages.loki.indexGateway.persistence.enableStatefulSetAutoDeletePVC }}
+            size: {{ .Values.packages.loki.indexGateway.persistence.size }}
+          {{- end }}
+        compactor:
+          {{- if not (eq .Values.environment "prd") }}
+          affinity:
+          {{- end }}
+          replicas: {{ .Values.packages.loki.compactor.replicas }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.compactor.terminationGracePeriodSeconds }}
+          {{- if .Values.packages.loki.compactor.persistence.enabled }}
+          persistence:
+            enabled: {{ .Values.packages.loki.compactor.persistence.enabled }}
+            enableStatefulSetAutoDeletePVC: {{ .Values.packages.loki.compactor.persistence.enableStatefulSetAutoDeletePVC }}
+            size: {{ .Values.packages.loki.compactor.persistence.size }}
+            claims:
+            {{- range .Values.packages.loki.compactor.persistence.claims }}
+            - name: {{ .name }}
+              size: {{ .size }}
+            {{- end }}
+          {{- end }}
+        memcachedExporter:
+          enabled: {{ .Values.packages.loki.memcachedExporter.enabled }}
+        resultsCache:
+          enabled: {{ .Values.packages.loki.resultsCache.enabled }}
+          replicas: {{ .Values.packages.loki.resultsCache.replicas }}
+          {{- if .Values.packages.loki.resultsCache.defaultValidity }}
+          defaultValidity: {{ .Values.packages.loki.resultsCache.defaultValidity }}
+          {{- end }}
+          {{- if .Values.packages.loki.resultsCache.allocatedMemory }}
+          allocatedMemory: {{ .Values.packages.loki.resultsCache.allocatedMemory }}
+          {{- end }}
+          {{- if .Values.packages.loki.resultsCache.maxItemMemory }}
+          maxItemMemory: {{ .Values.packages.loki.resultsCache.maxItemMemory }}
+          {{- end }}
+          {{- if .Values.packages.loki.resultsCache.terminationGracePeriodSeconds }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.resultsCache.terminationGracePeriodSeconds }}
+          {{- end }}
+        chunksCache:
+          enabled: {{ .Values.packages.loki.chunksCache.enabled }}
+          replicas: {{ .Values.packages.loki.chunksCache.replicas }}
+          {{- if .Values.packages.loki.chunksCache.batchSize }}
+          batchSize: {{ .Values.packages.loki.chunksCache.batchSize }}
+          {{- end }}
+          {{- if .Values.packages.loki.chunksCache.parallelism }}
+          parallelism: {{ .Values.packages.loki.chunksCache.parallelism }}
+          {{- end }}
+          {{- if .Values.packages.loki.chunksCache.terminationGracePeriodSeconds }}
+          terminationGracePeriodSeconds: {{ .Values.packages.loki.chunksCache.terminationGracePeriodSeconds }}
+          {{- end }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

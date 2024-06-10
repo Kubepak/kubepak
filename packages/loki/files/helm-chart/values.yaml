@@ -1,0 +1,233 @@
+packages:
+  loki:
+    image:
+      registry:
+      repository:
+      tag:
+    deploymentMode: SimpleScalable
+    multiTenant: true
+    chunkEncoding: snappy
+    maxConcurrentQuery: 5
+    storage:
+      logReplication: 3
+      bucketNames:
+        chunks:
+        ruler:
+      logSuppression:
+        enabled: false
+        defaultGlobalRetention: 7d
+        retentionPerTenant:
+          - tenantName:
+            defaultRetentionForTenant:
+            logSteams: []
+      azure:
+        enabled: false
+        accountName:
+        accountKey:
+        connectionString:
+        useManagedIdentity: false
+        useFederatedToken: false
+        userAssignedId:
+        requestTimeout:
+        endpointSuffix:
+    schemaConfig:
+      - from:
+        objectStore:
+        prefix:
+    gateway:
+      replicas: 1
+      terminationGracePeriodSeconds: 30
+      autoscalling:
+        enabled: false
+        minReplicas: 1
+        maxReplicas: 3
+        targetCPUUtilizationPercentage: 60
+        targetMemoryUtilizationPercentage: 80
+        scaleUpBehavior:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 60
+        scaleDownBehavior:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 180
+    write:
+      replicas: 2
+      terminationGracePeriodSeconds: 300
+      persistence:
+        enableStatefulSetAutoDeletePVC: false
+        size: 10Gi
+      autoscalling:
+        enabled: false
+        minReplicas: 2
+        maxReplicas: 6
+        targetCPUUtilizationPercentage: 60
+        targetMemoryUtilizationPercentage: 80
+        scaleUpBehavior:
+          stabilizationWindowSeconds: 3600
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 900
+        scaleDownBehavior:
+          stabilizationWindowSeconds: 3600
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 1800
+    read:
+      replicas: 2
+      terminationGracePeriodSeconds: 30
+      persistence:
+        enableStatefulSetAutoDeletePVC: true
+        size: 10Gi
+      autoscalling:
+        enabled: false
+        minReplicas: 2
+        maxReplicas: 6
+        targetCPUUtilizationPercentage: 60
+        targetMemoryUtilizationPercentage: 80
+        scaleUpBehavior:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 60
+        scaleDownBehavior:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 180
+    backend:
+      replicas: 2
+      terminationGracePeriodSeconds: 300
+      persistence:
+        enableStatefulSetAutoDeletePVC: true
+        size: 10Gi
+      autoscalling:
+        enabled: false
+        minReplicas: 3
+        maxReplicas: 6
+        targetCPUUtilizationPercentage: 60
+        targetMemoryUtilizationPercentage: 80
+        scaleUpBehavior:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 60
+        scaleDownBehavior:
+          stabilizationWindowSeconds: 300
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 180
+    distributor:
+      replicas: 0
+      terminationGracePeriodSeconds: 30
+      autoscalling:
+        enabled: false
+        minReplicas: 1
+        maxReplicas: 3
+        targetCPUUtilizationPercentage: 60
+        targetMemoryUtilizationPercentage: 80
+        customMetrics: []
+        scaleUpBehavior:
+          stabilizationWindowSeconds:
+          policies:
+            - type:
+              value:
+              periodSeconds:
+        scaleDownBehavior:
+          stabilizationWindowSeconds:
+          policies:
+            - type:
+              value:
+              periodSeconds:
+    querier:
+      replicas: 0
+      terminationGracePeriodSeconds: 300
+      persistence:
+        enabled: false
+        size: 10Gi
+      autoscalling:
+        enabled: false
+        minReplicas: 1
+        maxReplicas: 3
+        targetCPUUtilizationPercentage: 60
+        targetMemoryUtilizationPercentage: 80
+        customMetrics: []
+        scaleUpBehavior:
+          stabilizationWindowSeconds:
+          policies:
+            - type:
+              value:
+              periodSeconds:
+        scaleDownBehavior:
+          stabilizationWindowSeconds:
+          policies:
+            - type:
+              value:
+              periodSeconds:
+    queryFrontend:
+      replicas: 0
+      terminationGracePeriodSeconds: 30
+      autoscalling:
+        enabled: false
+        minReplicas: 1
+        maxReplicas: 3
+        targetCPUUtilizationPercentage: 60
+        targetMemoryUtilizationPercentage: 80
+        customMetrics: []
+        scaleUpBehavior:
+          stabilizationWindowSeconds:
+          policies:
+            - type:
+              value:
+              periodSeconds:
+        scaleDownBehavior:
+          stabilizationWindowSeconds:
+          policies:
+            - type:
+              value:
+              periodSeconds:
+    queryScheduler:
+      replicas: 0
+      terminationGracePeriodSeconds: 30
+    indexGateway:
+      replicas: 0
+      terminationGracePeriodSeconds: 300
+      persistence:
+        enabled: false
+        enableStatefulSetAutoDeletePVC: false
+        size: 10Gi
+    compactor:
+      replicas: 0
+      terminationGracePeriodSeconds: 30
+      persistence:
+        enabled: false
+        enableStatefulSetAutoDeletePVC: false
+        size: 10Gi
+        claims:
+          - name: data
+            size: 10Gi
+    memcachedExporter:
+      enabled: true
+    resultsCache:
+      enabled: true
+      replicas: 1
+      defaultValidity: 12h
+      allocatedMemory: 1024
+      maxItemMemory: 5
+      terminationGracePeriodSeconds: 60
+    chunksCache:
+      enabled: true
+      replicas: 1
+      batchSize: 4
+      parallelism: 5
+      terminationGracePeriodSeconds: 60

@@ -1,0 +1,61 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ .Values.environment }}-argo-cd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    targetRevision: {{ .Values.packages.promtail.chartVersion }}
+    chart: promtail
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if .Values.packages.promtail.image.registry }}
+        - name: image.registry
+          value: "{{ .Values.packages.promtail.image.registry }}"
+        {{- end }}
+        {{- if .Values.packages.promtail.image.repository }}
+        - name: image.repository
+          value: "{{ .Values.packages.promtail.image.repository }}"
+        {{- end }}
+        {{- if .Values.packages.promtail.image.tag }}
+        - name: image.tag
+          value: "{{ .Values.packages.promtail.image.tag }}"
+        {{- end }}
+      values: |
+        config:
+          snippets:
+            pipelineStages:
+              - drop:
+                source: namespace
+                expression: "dev-argo-cd"
+          {{- if index .Values.packages.promtail.clients 0 "url" }}
+          clients:
+            {{- range .Values.packages.promtail.clients }}
+            - url: {{ .url }}/loki/api/v1/push
+              tenant_id: {{ .tenantName }}
+            {{- end }}
+          {{- end }}
+        serviceMonitor:
+          enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+          labels:
+            release: prometheus-stack
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

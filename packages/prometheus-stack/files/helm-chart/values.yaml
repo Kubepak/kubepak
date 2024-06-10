@@ -16,3 +16,8 @@ packages:
           providers:
             generic: {}
             microsoft: {}
+      dataSources:
+        - name: Loki
+          type: loki
+          url: http://loki-gateway.dev-loki.svc.cluster.local
+          tenantName: loki
