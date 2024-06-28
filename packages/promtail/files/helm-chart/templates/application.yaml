@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
     app.kubernetes.io/managed-by: kubepak
   name: {{ .Release.Name }}
-  namespace: {{ .Values.environment }}-argo-cd
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -35,11 +35,34 @@ spec:
         {{- end }}
       values: |
         config:
+          {{- with .Values.packages.promtail.logModifications.drops }}
           snippets:
             pipelineStages:
+              {{- range . }}
               - drop:
-                source: namespace
-                expression: "dev-argo-cd"
+                  {{- if .source }}
+                  source: {{ .source }}
+                  {{- end }}
+                  {{- if .separator }}
+                  separator: {{ .separator }}
+                  {{- end }}
+                  {{- if .expression }}
+                  expression: {{ .expression }}
+                  {{- end }}
+                  {{- if .value }}
+                  value: {{ .value }}
+                  {{- end }}
+                  {{- if .olderThan }}
+                  older_than: {{ .olderThan }}
+                  {{- end }}
+                  {{- if .longerThan }}
+                  longer_than: {{ .longerThan }}
+                  {{- end }}
+                  {{- if .dropReason }}
+                  drop_counter_reason: {{ .dropReason }}
+                  {{- end }}
+              {{- end }}
+          {{- end }}
           {{- if index .Values.packages.promtail.clients 0 "url" }}
           clients:
             {{- range .Values.packages.promtail.clients }}

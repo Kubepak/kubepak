@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
     app.kubernetes.io/managed-by: kubepak
   name: {{ .Release.Name }}
-  namespace: {{ .Values.environment }}-argo-cd
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -87,7 +87,7 @@ spec:
             delete_request_store: s3
             {{- end }}
           limits_config:
-            retention_period: 744h
+            retention_period: {{ .Values.packages.loki.storage.logSuppression.defaultGlobalRetention }}
             per_tenant_override_config: /etc/loki/config/override/loki-tenant-override-rules.yaml
           {{- end }}
           commonConfig:

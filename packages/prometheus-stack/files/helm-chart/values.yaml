@@ -19,5 +19,5 @@ packages:
       dataSources:
         - name: Loki
           type: loki
-          url: http://loki-gateway.dev-loki.svc.cluster.local
+          url: http://loki-gateway.dev-genx-infra-loki.svc.cluster.local
           tenantName: loki
