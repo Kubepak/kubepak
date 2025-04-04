@@ -1,0 +1,76 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://k8s.ory.sh/helm/charts
+    targetRevision: {{ index .Values "packages" "ory-keto" "chartVersion" }}
+    chart: keto
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if index .Values "packages" "ory-keto" "image" "repository" }}
+        - name: image.repository
+          value: "{{ index .Values "packages" "ory-keto" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "ory-keto" "image" "tag" }}
+        - name: image.tag
+          value: "{{ index .Values "packages" "ory-keto" "image" "tag" }}"
+        {{- end }}
+      values: |
+        {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 8 }}
+        keto:
+          automigration:
+            enabled: true
+          config:
+            {{- if index .Values "packages" "ory-keto" "permissionModels" "filePaths" }}
+            namespaces:
+              location: "file:///etc/keto-namespaces/"
+            {{- end }}
+            dsn: {{ index .Values "packages" "ory-keto" "dsn" }}
+        deployment:
+          {{- if index .Values "packages" "ory-keto" "permissionModels" "filePaths" }}
+          extraVolumes:
+            - name: namespaces-volume
+              configMap:
+                name: {{ .Release.Name }}-namespaces
+          extraVolumeMounts:
+            {{- range index .Values "packages" "ory-keto" "permissionModels" "filePaths" }}
+              {{- $basename := include "hash.generateUniqueBasename" (dict "path" .) }}
+            - name: namespaces-volume
+              mountPath: {{ printf "/etc/keto-namespaces/%s" $basename }}
+              subPath: {{ $basename }}
+              readOnly: true
+            {{- end }}
+          {{- end }}
+          nodeSelector:
+            {{- toYaml (index .Values "packages" "ory-keto" "pod" "nodeSelector") | nindent 12 }}
+          tolerations:
+            {{- toYaml (index .Values "packages" "ory-keto" "pod" "tolerations") | nindent 12 }}
+          affinity:
+            {{- toYaml (index .Values "packages" "ory-keto" "pod" "affinity") | nindent 12 }}
+          resources:
+            {{- toYaml (index .Values "packages" "ory-keto" "pod" "container" "resources") | nindent 12 }}
+        serviceMonitor:
+          labels:
+            release: prometheus-stack
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

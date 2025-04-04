@@ -1,0 +1,12 @@
+{
+  "spec": {
+    "config": {
+      "enable_grpc_web": true,
+      "enable_grpc_http11_bridge": false,
+      "use_proxy_proto": true,
+      "use_remote_address": true,
+      "x_forwarded_proto_redirect": true,
+      "lua_scripts": "function envoy_on_request(request_handle)\n  local cert_subject = request_handle:streamInfo():downstreamSslConnection():subjectPeerCertificate()\n  if cert_subject then\n    local cn = string.match(cert_subject, \"CN=([^,]+)\")\n    if cn then\n      request_handle:headers():add(\"X-Ssl-Client-Cn\", cn)\n    end\n  end\n\n  local authority = request_handle:headers():get(\":authority\")\n  local host, port = string.match(authority, \"([^:]+):?(%d*)\")\n\n  if port ~= nil and port ~= \"\" then\n    request_handle:headers():add(\"X-Forwarded-Port\", port)\n  end\nend"
+    }
+  }
+}

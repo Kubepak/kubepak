@@ -14,7 +14,7 @@ metadata:
 spec:
   project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
   source:
-    repoURL: https://charts.bitnami.com/bitnami
+    repoURL: registry-1.docker.io/bitnamicharts
     targetRevision: {{ .Values.packages.mysql.chartVersion }}
     chart: mysql
     helm:
@@ -28,6 +28,9 @@ spec:
         {{- if .Values.packages.mysql.image.repository }}
         - name: image.repository
           value: "{{ .Values.packages.mysql.image.repository }}"
+        {{- else }}
+        - name: image.repository
+          value: "bitnamilegacy/mysql"
         {{- end }}
         {{- if .Values.packages.mysql.image.tag }}
         - name: image.tag
@@ -50,6 +53,8 @@ spec:
       values: |
         global:
           {{- include "common.registryCredentials.imagePullSecrets" . | nindent 10 }}
+          security:
+            allowInsecureImages: true
         primary:
           nodeSelector:
             {{- toYaml .Values.packages.mysql.primary.pod.nodeSelector | nindent 12 }}

@@ -34,13 +34,13 @@ hook_pre_install() {
 
     local __i
     for __i in $(seq "$(package_cache_values_file_count ".packages.${PACKAGE_IPATH}.configFiles")"); do
-        local __key
-        __key="$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.configFiles[$((__i - 1))].key").server"
+        local __config_file_key
+        __config_file_key="$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.configFiles[$((__i - 1))].key").server"
 
-        local __path
-        eval __path="$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.configFiles.[$((__i - 1))].path")"
+        local __resolved_config_file_path
+        eval __resolved_config_file_path="$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.configFiles.[$((__i - 1))].path")"
 
-        __files+=(["${__key}"]="${__path}")
+        __files+=(["${__config_file_key}"]="${__resolved_config_file_path}")
     done
 
     if [[ $(package_cache_values_file_count ".packages.${PACKAGE_IPATH}.configFiles") -gt 0 ]]; then

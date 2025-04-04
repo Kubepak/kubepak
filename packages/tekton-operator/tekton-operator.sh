@@ -28,7 +28,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 # @package-option attributes="shared"
 
 # @package-option dependencies="argo-cd"
-# @package-option dependencies="emissary-ingress" [ ",${CONTEXT}," =~ ",single-ingress-controller," ]
+# @package-option dependencies="emissary-ingress" [ ! ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 # @package-option dependencies="ingress-management" [ ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 
 #-----------------------------------------------------------------------------

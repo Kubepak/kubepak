@@ -4,6 +4,9 @@
 
 Intended for development or testing only.
 
+This package utilizes the Bitnami Legacy image repository by default. The standard Bitnami MySQL image is no longer
+available for free via Docker Hub.
+
 ## Description
 
 A package for MySQL, a fast, reliable, scalable, and easy to use open source relational database system.

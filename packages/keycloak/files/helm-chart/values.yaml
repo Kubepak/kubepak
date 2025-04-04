@@ -1,0 +1,17 @@
+packages:
+  keycloak:
+    image:
+      registry:
+      repository:
+      tag:
+    ingress:
+      host:
+    configPath: []
+    auth:
+      adminPassword: admin
+    pod:
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      container:
+        resources: {}

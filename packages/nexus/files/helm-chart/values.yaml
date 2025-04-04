@@ -4,12 +4,6 @@ packages:
       enabled: true
     ingress:
       host:
-    auth:
-      saml:
-        enabled: false
-    repositories:
-      config:
-        path:
     global:
       image:
         repository:

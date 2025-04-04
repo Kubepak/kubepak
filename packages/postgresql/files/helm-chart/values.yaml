@@ -1,5 +1,6 @@
 packages:
   postgresql:
+    bitnamiLegacy: false
     image:
       registry:
       repository:

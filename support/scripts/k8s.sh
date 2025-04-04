@@ -90,6 +90,39 @@ k8s_configmap_create_from_files() {
     k8s_annotate "${__namespace}" "configmap" "${__configmap_name}" "${__annotations_ref_name}"
 }
 
+k8s_configmap_delete() {
+    local __namespace="${1}"
+    local __configmap_name="${2:-}"
+    local __labels_ref_name="${3:-}"
+
+    local __label_selector=""
+
+    if [[ -n "${__labels_ref_name}" ]]; then
+        local -n __labels_ref="${__labels_ref_name}"
+        local __label_key
+
+        for __label_key in "${!__labels_ref[@]}"; do
+            __label_selector+="${__label_key}=${__labels_ref[${__label_key}]},"
+        done
+        __label_selector="${__label_selector%,}"
+    fi
+
+    # Enforce mutual exclusivity
+    if [[ -n "${__configmap_name}" && -n "${__label_selector}" ]]; then
+        return 2
+    fi
+
+    if [[ -z "${__configmap_name}" && -z "${__label_selector}" ]]; then
+        return 3
+    fi
+
+    local __args=(delete configmap -n "${__namespace}")
+    [[ -n "${__configmap_name}" ]] && __args+=("${__configmap_name}")
+    [[ -n "${__label_selector}" ]] && __args+=(-l "${__label_selector}")
+
+    kubectl "${__args[@]}"
+}
+
 k8s_label() {
     local __namespace="${1}"
     local __resource_type="${2}"

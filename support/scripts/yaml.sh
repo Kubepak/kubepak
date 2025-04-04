@@ -17,7 +17,7 @@
 #  along with Kubepak.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-set -eo pipefail
+#set -eo pipefail
 
 #-----------------------------------------------------------------------------
 # Public Methods
@@ -58,10 +58,29 @@ yaml_delete() {
 }
 
 yaml_merge() {
-    local __files=("${@}")
+    local __overwrite=false
+    local __files=()
 
-    # shellcheck disable=SC2016
-    yq eval-all '. as $item ireduce ({}; . *+ $item )' "${__files[@]}"
+    while [[ $# -gt 0 ]]; do
+        case "${1}" in
+        --overwrite)
+            __overwrite=true
+            shift
+            ;;
+        *)
+            __files+=("${1}")
+            shift
+            ;;
+        esac
+    done
+
+    if ! ${__overwrite}; then
+        # shellcheck disable=SC2016
+        yq eval-all '. as $item ireduce ({}; . *+ $item )' "${__files[@]}"
+    else
+        # shellcheck disable=SC2016
+        yq eval-all '. as $item ireduce ({}; . * $item )' "${__files[@]}"
+    fi
 }
 
 yaml_move() {
@@ -108,9 +127,9 @@ yaml_read_json() {
     local __default_value="${4:-"{}"}"
 
     if ! ${__compact}; then
-        yq eval -o json "${__path_expr} // ${__default_value}" "${__file}"
+        yq eval -o json "${__path_expr} // \"${__default_value}\"" "${__file}" | jq -rM '.'
     else
-        yq eval -I0 -o json "${__path_expr} // ${__default_value}" "${__file}"
+        yq eval -o json "${__path_expr} // \"${__default_value}\"" "${__file}" | jq -crM '.'
     fi
 }
 

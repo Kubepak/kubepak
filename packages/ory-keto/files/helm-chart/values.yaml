@@ -1,0 +1,13 @@
+packages:
+  ory-keto:
+    image:
+      repository:
+      tag:
+    permissionModels:
+      filePaths: []
+    pod:
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      container:
+        resources: {}

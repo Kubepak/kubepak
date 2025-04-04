@@ -20,10 +20,15 @@
 set -eo pipefail
 
 #-----------------------------------------------------------------------------
+# Private Constants
+
+readonly __SPECIAL_CHARACTERS="!@#$%^&*"
+
+#-----------------------------------------------------------------------------
 # Public Methods
 
 password_generate() {
     local __size="${1:-32}"
 
-    LC_ALL=C tr -dc "A-Za-z0-9" </dev/urandom | base64 | head -c "${__size}"; echo -n
+    shuf -e {A..Z} {a..z} {0..9} "$(echo "${__SPECIAL_CHARACTERS}" | fold -w1)" -r -n "${__size}" | tr -d '\n'
 }

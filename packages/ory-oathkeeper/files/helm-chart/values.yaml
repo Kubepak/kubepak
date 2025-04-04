@@ -1,0 +1,18 @@
+packages:
+  ory-oathkeeper:
+    image:
+      repository:
+      tag:
+    accessRules:
+      filePaths: []
+      repositories: {}
+    tls:
+      ca:
+        srcFilePath:
+        dstFilePath:
+    pod:
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      container:
+        resources: {}

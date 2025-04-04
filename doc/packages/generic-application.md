@@ -63,16 +63,17 @@ A package for generic application deployment. Because nobody can remember the Ku
 | generic-application.ingress.mappings[`{i}`].grpc                              | bool   | false                                                                                     | Ingress mapping gRPC enabled flag                                          |
 | generic-application.ingress.mappings[`{i}`].prefix                            | string | /                                                                                         | Ingress mapping prefix                                                     |
 | generic-application.ingress.mappings[`{i}`].rewrite                           | string | /                                                                                         | Ingress mapping rewrite                                                    |
-| generic-application.ingress.mappings[`{i}`].bypassAuth                        | bool   | true                                                                                      | Ingress mapping bypassAuth flag                                            |
+| generic-application.ingress.mappings[`{i}`].bypassAuth                        | bool   | false                                                                                     | Ingress mapping bypassAuth flag                                            |
+| generic-application.ingress.mappings[`{i}`].requestHeaders                    | object | {}                                                                                        | Ingress mapping request headers                                            |
 | generic-application.ingress.mappings[`{i}`].timeoutMs                         | int    | 3000                                                                                      | Ingress mapping timeout in ms                                              |
 | generic-application.ingress.mappings[`{i}`].idleTimeoutMs                     | int    | 3600000                                                                                   | Ingress mapping idle timeout in ms                                         |
 | generic-application.ingress.mappings[`{i}`].connectTimeoutMs                  | int    | 3000                                                                                      | Ingress mapping connect timeout in ms                                      |
+| generic-application.ingress.mappings[`{i}`].cors.origins                      | list   | []                                                                                        | Ingress CORS origins                                                       |
+| generic-application.ingress.mappings[`{i}`].cors.methods                      | list   | []                                                                                        | Ingress CORS methods                                                       |
+| generic-application.ingress.mappings[`{i}`].cors.headers                      | list   | []                                                                                        | Ingress CORS headers                                                       |
 | generic-application.ingress.mappings[`{i}`].cors.credentials                  | bool   | false                                                                                     | Ingress CORS credentials flag                                              |
 | generic-application.ingress.mappings[`{i}`].cors.exposedHeaders               | list   | []                                                                                        | Ingress CORS exposed headers                                               |
-| generic-application.ingress.mappings[`{i}`].cors.headers                      | list   | []                                                                                        | Ingress CORS headers                                                       |
 | generic-application.ingress.mappings[`{i}`].cors.maxAge                       | int    | 86400                                                                                     | Ingress CORS max age                                                       |
-| generic-application.ingress.mappings[`{i}`].cors.methods                      | list   | []                                                                                        | Ingress CORS methods                                                       |
-| generic-application.ingress.mappings[`{i}`].cors.origins                      | list   | []                                                                                        | Ingress CORS origins                                                       |
 | generic-application.ingress.mappings[`{i}`].allowUpgrade                      | list   | []                                                                                        | List of non-HTTP protocols that can be upgraded from HTTP                  |
 | generic-application.ingress.tcpMappings[`{i}`].serviceName                    | string |                                                                                           | TCP Ingress mapping service name                                           |
 | generic-application.ingress.tcpMappings[`{i}`].servicePort                    | int    |                                                                                           | TCP Ingress mapping service port                                           |
@@ -113,8 +114,14 @@ A package for generic application deployment. Because nobody can remember the Ku
 
 ### Notes
 
-1. If Vault kv secrets engine is enabled, the secret path for your application is set to
+1. The `generic-application.ingress.mappings[i].requestHeaders` value must follow this format:
+   ```
+   <request-header>:
+     value: <some-value>
+   ```
+
+2. If Vault kv secrets engine is enabled, the secret path for your application is set to
    "/secret/\<k8s-package-namespace\>".
 
-2. If the Vault agent is disabled, the application is responsible for obtaining a token to access its secrets and
+3. If the Vault agent is disabled, the application is responsible for obtaining a token to access its secrets and
    credentials to access its databases.

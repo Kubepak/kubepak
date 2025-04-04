@@ -15,7 +15,7 @@
 #  along with Kubepak.  If not, see <https://www.gnu.org/licenses/>.
 #
 
-ARG UBUNTU_VERSION="24.04"
+ARG UBUNTU_VERSION="25.04"
 
 FROM ubuntu:${UBUNTU_VERSION} as awscli-installer
 
@@ -30,6 +30,7 @@ FROM ubuntu:${UBUNTU_VERSION}
 ARG HELM_VERSION
 ARG KUBECTL_VERSION
 ARG MONGOSH_VERSION
+ARG OPENAPI_OATHKEEPER_VERSION
 ARG VAULT_VERSION
 ARG YQ_VERSION
 
@@ -38,7 +39,7 @@ SHELL ["/bin/bash", "-c"]
 # Prerequisites
 
 RUN apt-get update \
- && apt-get install -y curl git jq mysql-client openssh-client postgresql-client
+ && apt-get install -y curl git jq mysql-client openssh-client postgresql-client-17
 
 ## awscli
 
@@ -59,6 +60,11 @@ RUN [[ -z "${HELM_VERSION}" ]] && __version="$(curl -sSfL "https://api.github.co
 RUN [[ -z "${KUBECTL_VERSION}" ]] && __version="$(curl -sSfL https://dl.k8s.io/release/stable.txt)" || __version="v${KUBECTL_VERSION}" \
  && curl -sSfL -o "/usr/local/bin/kubectl" "https://dl.k8s.io/release/${__version}/bin/linux/amd64/kubectl" \
  && chmod +x "/usr/local/bin/kubectl"
+
+## openapi-oathkeeper
+
+RUN [[ -z "${OPENAPI_OATHKEEPER_VERSION}" ]] && __version="$(curl -sSfL "https://api.github.com/repos/cerberauth/openapi-oathkeeper/releases/latest" | jq -r '.tag_name')" || __version="v${OPENAPI_OATHKEEPER_VERSION}" \
+ && curl -sSfL "https://github.com/cerberauth/openapi-oathkeeper/releases/download/${__version}/openapi-oathkeeper_Linux_x86_64.tar.gz" | tar xzf - -C "/usr/local/bin" "openapi-oathkeeper"
 
 ## mongosh
 

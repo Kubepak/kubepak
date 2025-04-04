@@ -11,7 +11,7 @@ A package for Sonatype Nexus, a centralized, scalable repository management.
 | nexus.license_b64                           | string |                                                                             | Nexus licence file content, in base64 without line wrapping |
 | nexus.cluster.enabled                       | bool   | true                                                                        | Cluster enabled flag                                        |
 | nexus.ingress.host                          | string | nexus.\<environment\>.\<project\>.\<organization\>.local:<ingressHttpsPort> | Ingress host                                                |
-| nexus.config.path                           | string |                                                                             | Nexus configuration path                                    |
+| nexus.configPath                            | string |                                                                             | Nexus configuration path                                    |
 | nexus.global.image.repository               | string |                                                                             | Global image repository                                     |
 | nexus.global.image.tag                      | string |                                                                             | Global image tag                                            |
 | nexus.server.image.repository               | string |                                                                             | Server image repository                                     |

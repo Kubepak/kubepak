@@ -1,0 +1,3 @@
+{{- if eq (include "common.context.contains" (merge (dict "value" "grafana-dashboard") .)) "true" }}
+{{- include "common.grafana.dashboard.configmaps" (merge (dict "path" "grafana/dashboards/*.json") .) }}
+{{- end }}

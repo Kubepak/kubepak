@@ -14,7 +14,7 @@ metadata:
 spec:
   project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
   source:
-    repoURL: https://charts.bitnami.com/bitnami
+    repoURL: registry-1.docker.io/bitnamicharts
     targetRevision: {{ .Values.packages.postgresql.chartVersion }}
     chart: postgresql
     helm:
@@ -28,10 +28,16 @@ spec:
         {{- if .Values.packages.postgresql.image.repository }}
         - name: image.repository
           value: "{{ .Values.packages.postgresql.image.repository }}"
+        {{- else if .Values.packages.postgresql.bitnamiLegacy }}
+        - name: image.repository
+          value: "bitnamilegacy/postgresql"
         {{- end }}
         {{- if .Values.packages.postgresql.image.tag }}
         - name: image.tag
           value: "{{ .Values.packages.postgresql.image.tag }}"
+        {{- else if not .Values.packages.postgresql.bitnamiLegacy }}
+        - name: image.tag
+          value: "latest"
         {{- end }}
         - name: auth.enablePostgresUser
           value: "true"
@@ -64,6 +70,10 @@ spec:
       values: |
         global:
           {{- include "common.registryCredentials.imagePullSecrets" . | nindent 10 }}
+          {{- if .Values.packages.postgresql.bitnamiLegacy }}
+          security:
+            allowInsecureImages: true
+          {{- end }}
         primary:
           nodeSelector:
             {{- toYaml .Values.packages.postgresql.primary.pod.nodeSelector | nindent 12 }}

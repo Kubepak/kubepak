@@ -33,7 +33,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __EMISSARY_INGRESS_CHART_VERSION="8.9.1"
+readonly __EMISSARY_INGRESS_CHART_VERSION="8.12.2"
 
 #-----------------------------------------------------------------------------
 # Public Hooks
@@ -63,8 +63,18 @@ hook_install() {
     argo_cd_application_wait "${K8S_PACKAGE_NAME}"
 }
 
+hook_post_install() {
+    kubectl patch modules.getambassador.io -n "${K8S_PACKAGE_NAMESPACE}" "ambassador" \
+        --type merge \
+        --patch-file "${PACKAGE_DIR}/files/patch/module.json"
+}
+
 hook_upgrade() {
     hook_install
+}
+
+hook_post_upgrade() {
+    hook_post_install
 }
 
 package_hook_execute "${@}"

@@ -27,7 +27,7 @@ Now that the prerequisites are installed, and your user is added to the Docker g
 
 ```bash
 minikube start \
-  --kubernetes-version="v1.30.0" \
+  --kubernetes-version="v1.33.0" \
   --driver="docker" \
   --memory="8G" \
   --cpus="6" \

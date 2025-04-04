@@ -9,15 +9,16 @@ image.
 This option gives you more control and is ideal for developers actively working on Kubepak. Make sure you have these
 packages installed on your Linux system:
 
-* `Essential`: curl, docker-buildx, docker.io, git, jq, mysql-client, openssh-client, postgresql-client
+* `Essential`: curl, docker-buildx, docker.io, git, jq, mysql-client, openssh-client, postgresql-client-17
 * `Additional Tools`:
-  - Install [`awscli`](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-  - Install [`az`](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
-  - Install [`helm`](https://helm.sh/docs/intro/install/)
-  - Install [`kubectl`](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-linux)
-  - Install [`mongosh`](https://www.mongodb.com/try/download/shell)
-  - Install [`vault`](https://www.vaultproject.io/downloads)
-  - Install [`yq`](https://github.com/mikefarah/yq/#install)
+    - Install [`awscli`](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+    - Install [`az`](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
+    - Install [`helm`](https://helm.sh/docs/intro/install/)
+    - Install [`kubectl`](https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-linux)
+    - Install [`mongosh`](https://www.mongodb.com/try/download/shell)
+    - Install [`openapi-oathkeeper`](https://github.com/cerberauth/openapi-oathkeeper#installation)
+    - Install [`vault`](https://www.vaultproject.io/downloads)
+    - Install [`yq`](https://github.com/mikefarah/yq/#install)
 
 Follow the linked instructions for each tool to install them correctly.
 

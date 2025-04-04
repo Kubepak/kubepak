@@ -29,14 +29,14 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 
 # @package-option dependencies="argo-cd"
 # @package-option dependencies="custom-coredns" [ ,${CONTEXT}, =~ ,custom-coredns, ]
-# @package-option dependencies="emissary-ingress" [ ",${CONTEXT}," =~ ",single-ingress-controller," ]
+# @package-option dependencies="emissary-ingress" [ ! ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 # @package-option dependencies="ingress-management" [ ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 # @package-option dependencies="prometheus-stack" [ ,${CONTEXT}, =~ ,prometheus-metrics, ]
 
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __ARGO_WORKFLOWS_CHART_VERSION="0.41.11"
+readonly __ARGO_WORKFLOWS_CHART_VERSION="0.46.1"
 
 #-----------------------------------------------------------------------------
 # Public Hooks

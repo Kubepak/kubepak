@@ -13,6 +13,7 @@ indexing that you need.
 
 | Name                                    | Type   | Default | Description                                                 |
 |-----------------------------------------|--------|---------|-------------------------------------------------------------|
+| mongodb.bitnamiLegacy                   | bool   | false   | Bitnami legacy mode                                         |
 | mongodb.image.registry                  | string |         | Image registry                                              |
 | mongodb.image.repository                | string |         | Image repository                                            |
 | mongodb.image.tag                       | string |         | Image tag                                                   |

@@ -40,6 +40,14 @@ spec:
       - ECDHE-RSA-AES256-GCM-SHA384
       - ECDHE-RSA-AES128-GCM-SHA256
       - ECDHE-RSA-CHACHA20-POLY1305
+    {{- if $host.tls }}
+      {{- if $host.tls.client }}
+        {{- if $host.tls.client.caCert_b64 }}
+    ca_secret: {{ $.Release.Name }}-{{ $host.name }}-client-cacert
+    cert_required: true
+        {{- end }}
+      {{- end }}
+    {{- end }}
   acmeProvider:
     authority: none
 ...

@@ -28,7 +28,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 # @package-option attributes="shared"
 
 # @package-option dependencies="argo-cd"
-# @package-option dependencies="emissary-ingress" [ ",${CONTEXT}," =~ ",single-ingress-controller," ]
+# @package-option dependencies="emissary-ingress" [ ! ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 # @package-option dependencies="ingress-public" [ ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 # @package-option dependencies="nexus-database"
 # @package-option dependencies="prometheus-stack" [ ,${CONTEXT}, =~ ,prometheus-metrics, ]
@@ -81,10 +81,10 @@ __nexus_config_apply() {
     local __nexus_admin_username="${1}"
     local __nexus_admin_password="${2}"
 
-    local __config_path
-    eval __config_path="$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.config.path")"
+    local __resolved_config_path
+    eval __resolved_config_path="$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.configPath")"
 
-    if [[ ! -e "${__config_path}" ]]; then
+    if [[ ! -e "${__resolved_config_path}" ]]; then
         return 1
     fi
 
@@ -111,16 +111,16 @@ __nexus_config_apply() {
         local __callback_params
         readarray -td, __callback_params <<<"$(cut -d ',' -f3- <<<"${__NEXUS_API_LUT[${__key}]}")"
 
-        if [[ $(yaml_count "${__config_path}" "${__path_expr}") -gt 0 ]]; then
+        if [[ $(yaml_count "${__resolved_config_path}" "${__path_expr}") -gt 0 ]]; then
             if ${__has_multiple_entries}; then
                 local __i
-                for __i in $(seq "$(yaml_count "${__config_path}" "${__path_expr}")"); do
+                for __i in $(seq "$(yaml_count "${__resolved_config_path}" "${__path_expr}")"); do
                     # shellcheck disable=SC2048,SC2086
-                    "${__callback}" "${__nexus_admin_username}" "${__nexus_admin_password}" "http://127.0.0.1:${NEXUS_PORT}" ${__callback_params[*]} "$(yaml_read_json "${__config_path}" "${__path_expr}[$((__i - 1))]")"
+                    "${__callback}" "${__nexus_admin_username}" "${__nexus_admin_password}" "http://127.0.0.1:${NEXUS_PORT}" ${__callback_params[*]} "$(yaml_read_json "${__resolved_config_path}" "${__path_expr}[$((__i - 1))]")"
                 done
             else
                 # shellcheck disable=SC2048,SC2086
-                "${__callback}" "${__nexus_admin_username}" "${__nexus_admin_password}" "http://127.0.0.1:${NEXUS_PORT}" ${__callback_params[*]} "$(yaml_read_json "${__config_path}" "${__path_expr}")"
+                "${__callback}" "${__nexus_admin_username}" "${__nexus_admin_password}" "http://127.0.0.1:${NEXUS_PORT}" ${__callback_params[*]} "$(yaml_read_json "${__resolved_config_path}" "${__path_expr}")"
             fi
         fi
     done
@@ -134,19 +134,19 @@ hook_initialize() {
 
     # Save the Docker subdomains in the cache to enable the creation of the Ingress mappings
     {
-        local __config_path
-        eval __config_path="$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.config.path")"
+        local __resolved_config_path
+        eval __resolved_config_path="$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.configPath")"
 
-        if [[ ! -e "${__config_path}" ]]; then
+        if [[ ! -e "${__resolved_config_path}" ]]; then
             return 1
         fi
 
         local __repository_type
-        for __repository_type in $(yaml_read "${__config_path}" ".nexus.api.repositories[\"docker\"][] | key"); do
+        for __repository_type in $(yaml_read "${__resolved_config_path}" ".nexus.api.repositories[\"docker\"][] | key"); do
             local __i
-            for __i in $(seq "$(yaml_count "${__config_path}" ".nexus.api.repositories[\"docker\"][\"${__repository_type}\"]")"); do
+            for __i in $(seq "$(yaml_count "${__resolved_config_path}" ".nexus.api.repositories[\"docker\"][\"${__repository_type}\"]")"); do
                 package_cache_values_file_write ".packages.${PACKAGE_IPATH}.docker.registries[$((__i - 1))]" \
-                    "$(yaml_read "${__config_path}" ".nexus.api.repositories[\"docker\"][\"${__repository_type}\"][$((__i - 1))].docker.subdomain")"
+                    "$(yaml_read "${__resolved_config_path}" ".nexus.api.repositories[\"docker\"][\"${__repository_type}\"][$((__i - 1))].docker.subdomain")"
             done
         done
     }
@@ -177,12 +177,12 @@ hook_pre_install() {
     if ! k8s_resource_exists "${K8S_PACKAGE_NAMESPACE}" "secret" "${PACKAGE_NAME}-database-nexus-password"; then
         __database_nexus_password="$(password_generate "32")"
 
-        k8s_secret_create "${K8S_PACKAGE_NAMESPACE}" "${PACKAGE_NAME}-nexus-database-password" "kubernetes.io/basic-auth" '{
+        k8s_secret_create "${K8S_PACKAGE_NAMESPACE}" "${PACKAGE_NAME}-database-nexus-password" "kubernetes.io/basic-auth" '{
           "username": "'"$(echo "nexus" | base64)"'",
           "password": "'"$(echo "${__database_nexus_password}" | base64)"'"
         }'
     else
-        __database_nexus_password="$(kubectl get secret -n "${K8S_PACKAGE_NAMESPACE}" "${PACKAGE_NAME}-nexus-database-password" --template='{{ .data.password | base64decode }}')"
+        __database_nexus_password="$(kubectl get secret -n "${K8S_PACKAGE_NAMESPACE}" "${PACKAGE_NAME}-database-nexus-password" --template='{{ .data.password | base64decode }}')"
     fi
 
     # Create the Nexus database user

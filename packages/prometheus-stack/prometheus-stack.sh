@@ -27,14 +27,14 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 # @package-option attributes="shared"
 
 # @package-option dependencies="argo-cd"
-# @package-option weak-dependencies="emissary-ingress" [ ",${CONTEXT}," =~ ",single-ingress-controller," ]
+# @package-option weak-dependencies="emissary-ingress" [ ! ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 # @package-option weak-dependencies="ingress-management" [ ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __PROMETHEUS_STACK_CHART_VERSION="60.4.0"
-readonly __PROMETHEUS_STACK_OPERATOR_CRDS="12.0.0"
+readonly __PROMETHEUS_STACK_CHART_VERSION="80.0.0"
+readonly __PROMETHEUS_STACK_OPERATOR_CRDS="25.0.0"
 
 #-----------------------------------------------------------------------------
 # Public Hooks

@@ -31,13 +31,18 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __POSTGRESQL_CHART_VERSION="15.5.9"
+readonly __POSTGRESQL_CHART_VERSION="18.1.13"
+readonly __POSTGRESQL_CHART_LEGACY_VERSION="16.7.27"
 
 #-----------------------------------------------------------------------------
 # Public Hooks
 
 hook_initialize() {
-    package_cache_values_file_write ".packages.${PACKAGE_IPATH}.chartVersion" "${__POSTGRESQL_CHART_VERSION}"
+    if [[ "$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.bitnamiLegacy")" != "true" ]]; then
+        package_cache_values_file_write ".packages.${PACKAGE_IPATH}.chartVersion" "${__POSTGRESQL_CHART_VERSION}"
+    else
+        package_cache_values_file_write ".packages.${PACKAGE_IPATH}.chartVersion" "${__POSTGRESQL_CHART_LEGACY_VERSION}"
+    fi
 
     k8s_namespace_create "${K8S_PACKAGE_NAMESPACE}"
 

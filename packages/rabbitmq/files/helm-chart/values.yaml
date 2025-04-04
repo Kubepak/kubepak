@@ -1,0 +1,17 @@
+packages:
+  rabbitmq:
+    image:
+      registry:
+      repository:
+      tag:
+    auth:
+      adminPassword: admin
+    manager:
+      ingress:
+        host:
+    pod:
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+      container:
+        resources: {}

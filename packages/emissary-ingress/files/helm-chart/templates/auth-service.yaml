@@ -1,0 +1,37 @@
+{{- if index .Values "packages" "emissary-ingress" "authServices" }}
+  {{- range $authService := index .Values "packages" "emissary-ingress" "authServices" }}
+---
+apiVersion: getambassador.io/v3alpha1
+kind: AuthService
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ $.Chart.Name }}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: {{ $.Values.organization }}.{{ $.Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ $.Release.Name }}-{{ $authService.name }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  ambassador_id:
+    - {{ include "emissary-ingress.id" $ }}
+  auth_service: {{ $authService.url }}
+  path_prefix: {{ $authService.prefix }}
+  proto: {{ default "http" ($authService.proto) $authService.proto }}
+  {{- if $authService.allowedRequestHeaders }}
+  allowed_request_headers:
+  {{- range $authService.allowedRequestHeaders }}
+  - {{ . }}
+  {{- end }}
+  {{- end }}
+  {{- if $authService.allowedAuthorizationHeaders }}
+  allowed_authorization_headers:
+  {{- range $authService.allowedAuthorizationHeaders }}
+  - {{ . }}
+  {{- end }}
+  {{- end }}
+  failure_mode_allow: false
+  status_on_error:
+    code: 404
+...
+  {{- end }}
+{{- end }}

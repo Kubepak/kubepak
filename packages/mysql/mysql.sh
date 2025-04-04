@@ -31,13 +31,13 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __MYSQL_CHART_VERSION="11.1.4"
+readonly __MYSQL_CHART_LEGACY_VERSION="14.0.3"
 
 #-----------------------------------------------------------------------------
 # Public Hooks
 
 hook_initialize() {
-    package_cache_values_file_write ".packages.${PACKAGE_IPATH}.chartVersion" "${__MYSQL_CHART_VERSION}"
+    package_cache_values_file_write ".packages.${PACKAGE_IPATH}.chartVersion" "${__MYSQL_CHART_LEGACY_VERSION}"
 
     k8s_namespace_create "${K8S_PACKAGE_NAMESPACE}"
 

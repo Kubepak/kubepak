@@ -13,10 +13,10 @@ to write code.
 | crossplane.image.repository                    | string |         | Image repository                          |
 | crossplane.image.tag                           | string |         | Image tag                                 |
 | crossplane.pod.nodeSelector                    | object | {}      | Node selection constraint                 |
-| crossplane.pod.tolerations                     | list   | []      | Node tolerations                          |
-| crossplane.pod.affinity                        | object | {}      | Node affinity                             |
+| crossplane.pod.tolerations                     | list   | []      | Pod tolerations                           |
+| crossplane.pod.affinity                        | object | {}      | Pod affinity                              |
 | crossplane.pod.container.resources             | object | {}      | Resource requests and limits              |
 | crossplane.rbacManager.pod.nodeSelector        | object | {}      | RBAC manager node selection constraint    |
-| crossplane.rbacManager.pod.tolerations         | list   | []      | RBAC manager node tolerations             |
-| crossplane.rbacManager.pod.affinity            | object | {}      | RBAC manager node affinity                |
+| crossplane.rbacManager.pod.tolerations         | list   | []      | RBAC manager pod tolerations              |
+| crossplane.rbacManager.pod.affinity            | object | {}      | RBAC manager pod affinity                 |
 | crossplane.rbacManager.pod.container.resources | object | {}      | RBAC manager resource requests and limits |

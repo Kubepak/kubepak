@@ -1,0 +1,130 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: https://k8s.ory.sh/helm/charts
+    targetRevision: {{ index .Values "packages" "ory-oathkeeper" "chartVersion" }}
+    chart: oathkeeper
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if index .Values "packages" "ory-oathkeeper" "image" "repository" }}
+        - name: image.repository
+          value: "{{ index .Values "packages" "ory-oathkeeper" "image" "repository" }}"
+        {{- end }}
+        {{- if index .Values "packages" "ory-oathkeeper" "image" "tag" }}
+        - name: image.tag
+          value: "{{ index .Values "packages" "ory-oathkeeper" "image" "tag" }}"
+        {{- end }}
+      values: |
+        {{- include "common.registryCredentials.imagePullSecrets" (merge (dict "hasNameField" true) .) | nindent 8 }}
+        oathkeeper:
+          config:
+            access_rules:
+              {{- if or (index .Values "packages" "ory-oathkeeper" "accessRules" "filePaths") (index .Values "packages" "ory-oathkeeper" "accessRules" "repositories") }}
+              repositories:
+                {{- range index .Values "packages" "ory-oathkeeper" "accessRules" "filePaths" }}
+                  {{- $basename := include "hash.generateUniqueBasename" (dict "path" .) }}
+                - file://{{ printf "/etc/oathkeeper-access-rules/%s" $basename }}
+                {{- end }}
+                {{- range index .Values "packages" "ory-oathkeeper" "accessRules" "repositories" }}
+                - {{ . }}
+                {{- end }}
+              {{- end }}
+              matching_strategy: regexp
+            authenticators:
+              anonymous:
+                enabled: true
+              jwt:
+                enabled: true
+                config:
+                  jwks_urls: []
+                  required_scope: []
+                  scope_strategy: exact
+                  target_audience: []
+                  trusted_issuers: []
+              noop:
+                enabled: true
+              unauthorized:
+                enabled: true
+            authorizers:
+              allow:
+                enabled: true
+              deny:
+                enabled: true
+              remote_json:
+                enabled: true
+                config:
+                  remote: http://placeholder-service.internal/not-used
+                  payload: '{}'
+            log:
+              format: json
+              leak_sensitive_values: false
+              level: warn
+            mutators:
+              noop:
+                enabled: true
+              cookie:
+                enabled: true
+                config:
+                  cookies: {}
+              header:
+                enabled: true
+                config:
+                  headers: {}
+        deployment:
+          {{- if or (index .Values "packages" "ory-oathkeeper" "accessRules" "filePaths") (index .Values "packages" "ory-oathkeeper" "tls" "ca" "srcFilePath") }}
+          extraVolumes:
+            {{- if index .Values "packages" "ory-oathkeeper" "accessRules" "filePaths" }}
+            - name: access-rules-volume
+              configMap:
+                name: {{ $.Release.Name }}-access-rules
+            {{- end }}
+            {{- if index .Values "packages" "ory-oathkeeper" "tls" "ca" "srcFilePath" }}
+            - name: ca-certificates
+              configMap:
+                name: {{ .Release.Name }}-ca-certificates
+            {{- end }}
+          extraVolumeMounts:
+            {{- range index .Values "packages" "ory-oathkeeper" "accessRules" "filePaths" }}
+              {{- $basename := include "hash.generateUniqueBasename" (dict "path" .) }}
+            - name: access-rules-volume
+              mountPath: {{ printf "/etc/oathkeeper-access-rules/%s" $basename }}
+              subPath: {{ $basename }}
+              readOnly: true
+            {{- end }}
+            {{- if index .Values "packages" "ory-oathkeeper" "tls" "ca" "srcFilePath" }}
+            - name: ca-certificates
+              readOnly: true
+              mountPath: {{ index .Values "packages" "ory-oathkeeper" "tls" "ca" "dstFilePath" | dir }}
+            {{- end }}
+          {{- end }}
+          nodeSelector:
+            {{- toYaml (index .Values "packages" "ory-oathkeeper" "pod" "nodeSelector") | nindent 12 }}
+          tolerations:
+            {{- toYaml (index .Values "packages" "ory-oathkeeper" "pod" "tolerations") | nindent 12 }}
+          resources:
+            {{- toYaml (index .Values "packages" "ory-oathkeeper" "pod" "container" "resources") | nindent 12 }}
+        affinity:
+          {{- toYaml (index .Values "packages" "ory-oathkeeper" "pod" "affinity") | nindent 10 }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

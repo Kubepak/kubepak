@@ -33,9 +33,18 @@ __postgresql_vault_configure() {
     local __default_ttl="${8}"
     local __max_ttl="${9}"
 
-    local __creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN ENCRYPTED PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT ALL PRIVILEGES ON SCHEMA public TO \"{{name}}\"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\"; ALTER DEFAULT PRIVILEGES FOR USER \"{{name}}\" IN SCHEMA public GRANT SELECT ON TABLES TO \"${__database_name}-ro\";"
+    local __creation_statements=""
     if [[ "${__database_mode}" == "ro" ]]; then
         __creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN ENCRYPTED PASSWORD '{{password}}' VALID UNTIL '{{expiration}}' IN ROLE \"${__database_name}-ro\";"
+    else
+        __creation_statements="
+            CREATE ROLE \"{{name}}\" WITH LOGIN ENCRYPTED PASSWORD '{{password}}' VALID UNTIL '{{expiration}}';
+            GRANT CONNECT ON DATABASE \"${__database_name}\" TO \"{{name}}\";
+            GRANT USAGE, CREATE ON SCHEMA public TO \"{{name}}\";
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \"{{name}}\";
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO \"{{name}}\";
+            ALTER DEFAULT PRIVILEGES FOR ROLE \"{{name}}\" IN SCHEMA public GRANT SELECT ON TABLES TO \"${__database_name}-ro\";
+        "
     fi
 
     __database_vault_configure \
@@ -79,7 +88,10 @@ __postgresql_create() {
 
     if [[ "$(psql -tXA "${__connection_string}" -c "SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = '${__database_name}-ro';")" != "1" ]]; then
         psql "${__connection_string}" -c "CREATE ROLE \"${__database_name}-ro\" NOLOGIN;"
+        psql "${__connection_string}" -c "GRANT CONNECT ON DATABASE \"${__database_name}\" TO \"${__database_name}-ro\";"
         psql "${__connection_string}" -c "GRANT USAGE ON SCHEMA public TO \"${__database_name}-ro\";"
+        psql "${__connection_string}" -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"${__database_name}-ro\";"
+        psql "${__connection_string}" -c "ALTER DEFAULT PRIVILEGES FOR ROLE \"${__database_root_username}\" IN SCHEMA public GRANT SELECT ON TABLES TO \"${__database_name}-ro\";"
     fi
 }
 
@@ -104,9 +116,18 @@ __postgresql_create_user() {
         __connection_string="postgresql://${__database_root_username}:${__database_root_password}@127.0.0.1:$(eval echo "\$${__package_prefix}_PORT")/${__database_name}$( ([[ -n "${__database_options}" ]] && echo "?${__database_options}") || :)"
     fi
 
-    local __creation_statements="CREATE ROLE \"${__database_new_username}\" WITH LOGIN ENCRYPTED PASSWORD '${__database_new_password}'; GRANT ALL PRIVILEGES ON SCHEMA public TO \"${__database_new_username}\"; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"${__database_new_username}\"; ALTER DEFAULT PRIVILEGES FOR USER \"${__database_new_username}\" IN SCHEMA public GRANT SELECT ON TABLES TO \"${__database_name}-ro\";"
+    local __creation_statements=""
     if [[ "${__database_mode}" == "ro" ]]; then
         __creation_statements="CREATE ROLE \"${__database_new_username}\" WITH LOGIN ENCRYPTED PASSWORD '${__database_new_password}' IN ROLE \"${__database_name}-ro\";"
+    else
+        __creation_statements="
+            CREATE ROLE \"${__database_new_username}\" WITH LOGIN ENCRYPTED PASSWORD '${__database_new_password}';
+            GRANT CONNECT ON DATABASE \"${__database_name}\" TO \"${__database_new_username}\";
+            GRANT USAGE, CREATE ON SCHEMA public TO \"${__database_new_username}\";
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO \"${__database_new_username}\";
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO \"${__database_new_username}\";
+            ALTER DEFAULT PRIVILEGES FOR ROLE \"${__database_new_username}\" IN SCHEMA public GRANT SELECT ON TABLES TO \"${__database_name}-ro\";
+        "
     fi
 
     if [[ "$(psql -tXA "${__connection_string/\/${__database_name}\?/\/postgres\?}" -c "SELECT 1 FROM pg_roles WHERE rolname = '${__database_new_username}';")" != "1" ]]; then
@@ -124,17 +145,17 @@ __postgresql_create_super_user() {
     local __database_new_password="${7}"
 
     local __connection_string
-    __connection_string="postgresql://${__database_root_username}:${__database_root_password}@${__database_hostname}:${__database_port}$( ([[ -n "${__database_options}" ]] && echo "?${__database_options}") || :)"
+    __connection_string="postgresql://${__database_root_username}:${__database_root_password}@${__database_hostname}:${__database_port}/postgres$( ([[ -n "${__database_options}" ]] && echo "?${__database_options}") || :)"
     if [[ "${__database_hostname}" =~ .*\.svc\.cluster\.local\.?$ ]]; then
         local __package_prefix="${__database_hostname%%.*}"
         __package_prefix="${__package_prefix^^}"
         __package_prefix="${__package_prefix//-/_}"
 
-        __connection_string="postgresql://${__database_root_username}:${__database_root_password}@127.0.0.1:$(eval echo "\$${__package_prefix}_PORT")$( ([[ -n "${__database_options}" ]] && echo "?${__database_options}") || :)"
+        __connection_string="postgresql://${__database_root_username}:${__database_root_password}@127.0.0.1:$(eval echo "\$${__package_prefix}_PORT")/postgres$( ([[ -n "${__database_options}" ]] && echo "?${__database_options}") || :)"
     fi
 
-    if [[ "$(psql -d "postgres" -tXA "${__connection_string}" -c "SELECT 1 FROM pg_roles WHERE rolname = '${__database_new_username}';")" != "1" ]]; then
-        psql -d "postgres" "${__connection_string}" -c "CREATE ROLE \"${__database_new_username}\" WITH SUPERUSER CREATEDB CREATEROLE LOGIN ENCRYPTED PASSWORD '${__database_new_password}';"
+    if [[ "$(psql -tXA "${__connection_string}" -c "SELECT 1 FROM pg_roles WHERE rolname = '${__database_new_username}';")" != "1" ]]; then
+        psql "${__connection_string}" -c "CREATE ROLE \"${__database_new_username}\" WITH SUPERUSER CREATEDB CREATEROLE LOGIN ENCRYPTED PASSWORD '${__database_new_password}';"
     fi
 }
 

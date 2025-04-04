@@ -28,7 +28,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 # @package-option attributes="shared"
 
 # @package-option dependencies="argo-cd"
-# @package-option dependencies="emissary-ingress" [ ",${CONTEXT}," =~ ",single-ingress-controller," ]
+# @package-option dependencies="emissary-ingress" [ ! ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 # @package-option dependencies="ingress-management" [ ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 
 # @package-option envs="VAULT_ADDR="http://127.0.0.1:\${VAULT_PORT}""
@@ -38,9 +38,9 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __VAULT_CHART_VERSION="0.28.0"
+readonly __VAULT_CHART_VERSION="0.31.0"
 
-readonly __VAULT_DEFAULT_TLS_CA_DST_FILE_PATH="/ssl/certs/ca-certificates.crt"
+readonly __VAULT_DEFAULT_TLS_CA_DST_FILE_PATH="/etc/ssl/certs/ca-certificates.crt"
 
 #-----------------------------------------------------------------------------
 # Public Hooks
@@ -176,10 +176,10 @@ path "secret/metadata/{{identity.entity.aliases.${__kubernetes_accessor}.metadat
 EOF
 
     vault policy write "kubernetes-accessor-secret-write" - <<EOF
-path "secret/data/{{identity.entity.aliases.${__kubernetes_accessor}.metadata.service_account_name}}/*" {
+path "secret/data/{{identity.entity.aliases.${__kubernetes_accessor}.metadata.service_account_namespace}}/*" {
   capabilities = ["create", "update", "patch", "read", "delete"]
 }
-path "secret/metadata/{{identity.entity.aliases.${__kubernetes_accessor}.metadata.service_account_name}}/*" {
+path "secret/metadata/{{identity.entity.aliases.${__kubernetes_accessor}.metadata.service_account_namespace}}/*" {
   capabilities = ["read", "list"]
 }
 EOF

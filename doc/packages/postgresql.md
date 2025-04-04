@@ -13,6 +13,7 @@ language combined with many features that safely store and scale the most compli
 
 | Name                                       | Type   | Default  | Description                                                          |
 |--------------------------------------------|--------|----------|----------------------------------------------------------------------|
+| postgresql.bitnamiLegacy                   | bool   | false    | Bitnami legacy mode                                                  |
 | postgresql.image.registry                  | string |          | Image registry                                                       |
 | postgresql.image.repository                | string |          | Image repository                                                     |
 | postgresql.image.tag                       | string |          | Image tag                                                            |

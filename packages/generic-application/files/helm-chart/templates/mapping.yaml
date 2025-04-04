@@ -28,7 +28,7 @@ spec:
       {{- end }}
     {{- end }}
   {{- end }}
-  bypass_auth: {{ default true $mapping.bypassAuth }}
+  bypass_auth: {{ default false $mapping.bypassAuth }}
   timeout_ms: {{ default 3000 $mapping.timeoutMs }}
   idle_timeout_ms: {{ default 3600000 $mapping.idleTimeoutMs }}
   connect_timeout_ms: {{ default 3000 $mapping.connectTimeoutMs }}

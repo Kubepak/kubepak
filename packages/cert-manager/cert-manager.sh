@@ -32,7 +32,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __CERT_MANAGER_CHART_VERSION="1.15.0"
+readonly __CERT_MANAGER_CHART_VERSION="1.19.1"
 
 #-----------------------------------------------------------------------------
 # Public Hooks

@@ -1,0 +1,92 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: registry-1.docker.io/bitnamicharts
+    targetRevision: {{ .Values.packages.keycloak.chartVersion }}
+    chart: keycloak
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if .Values.packages.keycloak.image.registry }}
+        - name: image.registry
+          value: "{{ .Values.packages.keycloak.image.registry }}"
+        {{- end }}
+        {{- if .Values.packages.keycloak.image.repository }}
+        - name: image.repository
+          value: "{{ .Values.packages.keycloak.image.repository }}"
+        {{- else }}
+        - name: image.repository
+          value: "bitnamilegacy/keycloak"
+        {{- end }}
+        {{- if .Values.packages.keycloak.image.tag }}
+        - name: image.tag
+          value: "{{ .Values.packages.keycloak.image.tag }}"
+        {{- end }}
+        - name: auth.adminUser
+          value: "admin"
+        - name: auth.adminPassword
+          value: "{{ .Values.packages.keycloak.auth.adminPassword }}"
+        - name: proxyHeaders
+          value: "xforwarded"
+      values: |
+        global:
+          {{- include "common.registryCredentials.imagePullSecrets" . | nindent 10 }}
+          security:
+            allowInsecureImages: true
+        {{- if .Values.packages.keycloak.configPaths }}
+        extraStartupArgs: "--import-realm"
+        extraVolumes:
+          - name: import-configs-volume
+            configMap:
+              name: {{ .Release.Name }}-import-configs
+        extraVolumeMounts:
+          {{- range .Values.packages.keycloak.configPaths }}
+            {{- $basename := base . }}
+          - name: import-configs-volume
+            mountPath: {{ printf "/opt/bitnami/keycloak/data/import/%s" $basename }}
+            subPath: {{ $basename }}
+            readOnly: true
+          {{- end }}
+        {{- end }}
+        metrics:
+          enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+          serviceMonitor:
+            enabled: {{ include "common.context.contains" (merge (dict "value" "prometheus-metrics") .) }}
+            labels:
+              release: prometheus-stack
+        nodeSelector:
+          {{- toYaml .Values.packages.keycloak.pod.nodeSelector | nindent 10 }}
+        tolerations:
+          {{- toYaml .Values.packages.keycloak.pod.tolerations | nindent 10 }}
+        affinity:
+          {{- toYaml .Values.packages.keycloak.pod.affinity | nindent 10 }}
+        resources:
+          {{- toYaml .Values.packages.keycloak.pod.container.resources | nindent 10 }}
+        postgresql:
+          global:
+            security:
+              allowInsecureImages: true
+          image:
+            repository: bitnamilegacy/postgresql
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

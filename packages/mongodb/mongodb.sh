@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
 
+#
+#  This file is part of Kubepak.
+#
+#  Kubepak is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  Kubepak is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU Lesser General Public License for more details.
+#
+#  You should have received a copy of the GNU Lesser General Public License
+#  along with Kubepak.  If not, see <https://www.gnu.org/licenses/>.
+#
+
 set -eo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/scripts/package.sh"
@@ -7,20 +24,25 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 #-----------------------------------------------------------------------------
 # Package Options
 
-# @option dependencies="argo-cd"
+# @package-option dependencies="argo-cd"
 
-# @option port-forwards="${PACKAGE_NAME}:${PACKAGE_PREFIX}_PORT:27017"
+# @package-option port-forwards="${PACKAGE_NAME}:${PACKAGE_PREFIX}_PORT:27017"
 
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __MONGODB_CHART_VERSION="15.6.9"
+readonly __MONGODB_CHART_VERSION="18.1.10"
+readonly __MONGODB_CHART_LEGACY_VERSION="16.5.45"
 
 #-----------------------------------------------------------------------------
 # Public Hooks
 
 hook_initialize() {
-    package_cache_values_file_write ".packages.${PACKAGE_IPATH}.chartVersion" "${__MONGODB_CHART_VERSION}"
+    if [[ "$(package_cache_values_file_read ".packages.${PACKAGE_IPATH}.bitnamiLegacy")" != "true" ]]; then
+        package_cache_values_file_write ".packages.${PACKAGE_IPATH}.chartVersion" "${__MONGODB_CHART_VERSION}"
+    else
+        package_cache_values_file_write ".packages.${PACKAGE_IPATH}.chartVersion" "${__MONGODB_CHART_LEGACY_VERSION}"
+    fi
 
     k8s_namespace_create "${K8S_PACKAGE_NAMESPACE}"
 

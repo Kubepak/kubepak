@@ -27,13 +27,13 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)/../../support/
 # @package-option attributes="shared"
 
 # @package-option dependencies="argo-cd"
-# @package-option dependencies="emissary-ingress" [ ",${CONTEXT}," =~ ",single-ingress-controller," ]
+# @package-option dependencies="emissary-ingress" [ ! ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 # @package-option dependencies="ingress-management" [ ",${CONTEXT}," =~ ",multiple-ingress-controllers," ]
 
 #-----------------------------------------------------------------------------
 # Private Constants
 
-readonly __ARGO_EVENTS_CHART_VERSION="2.4.6"
+readonly __ARGO_EVENTS_CHART_VERSION="2.4.19"
 
 #-----------------------------------------------------------------------------
 # Public Hooks

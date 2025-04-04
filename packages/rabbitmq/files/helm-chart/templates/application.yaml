@@ -1,0 +1,66 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ .Values.organization }}.{{ .Values.project }}
+    app.kubernetes.io/managed-by: kubepak
+  name: {{ .Release.Name }}
+  namespace: {{ index .Values "packages" "argo-cd" "namespace" }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: {{ .Values.environment }}-{{ .Values.organization }}-{{ .Values.project }}
+  source:
+    repoURL: registry-1.docker.io/bitnamicharts
+    targetRevision: {{ .Values.packages.rabbitmq.chartVersion }}
+    chart: rabbitmq
+    helm:
+      parameters:
+        - name: fullnameOverride
+          value: "{{ .Release.Name }}"
+        {{- if .Values.packages.rabbitmq.image.registry }}
+        - name: global.imageRegistry
+          value: "{{ .Values.packages.rabbitmq.image.registry }}"
+        {{- end }}
+        {{- if .Values.packages.rabbitmq.image.repository }}
+        - name: image.repository
+          value: "{{ .Values.packages.rabbitmq.image.repository }}"
+        {{- else }}
+        - name: image.repository
+          value: "bitnamilegacy/rabbitmq"
+        {{- end }}
+        {{- if .Values.packages.rabbitmq.image.tag }}
+        - name: image.tag
+          value: "{{ .Values.packages.rabbitmq.image.tag }}"
+        {{- end }}
+        - name: auth.username
+          value: "admin"
+        - name: auth.password
+          value: "{{ .Values.packages.rabbitmq.auth.adminPassword }}"
+        - name: auth.securePassword
+          value: "false"
+      values: |
+        global:
+          {{- include "common.registryCredentials.imagePullSecrets" . | nindent 10 }}
+          security:
+            allowInsecureImages: true
+        primary:
+          nodeSelector:
+            {{- toYaml .Values.packages.rabbitmq.pod.nodeSelector | nindent 12 }}
+          tolerations:
+            {{- toYaml .Values.packages.rabbitmq.pod.tolerations | nindent 12 }}
+          affinity:
+            {{- toYaml .Values.packages.rabbitmq.pod.affinity | nindent 12 }}
+          resources:
+            {{- toYaml .Values.packages.rabbitmq.pod.container.resources | nindent 12 }}
+  destination:
+    server: {{ .Values.kubernetes.server }}
+    namespace: {{ .Release.Namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+...

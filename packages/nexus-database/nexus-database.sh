@@ -43,9 +43,12 @@ hook_initialize() {
 
 hook_pre_install() {
     if [[ ,${CONTEXT}, =~ ,nexus-local-database, ]]; then
-        package_cache_values_file_write ".packages.${PACKAGE_IPATH}.postgresql.primary.extendedConfigmap" "${PACKAGE_NAME}-extended-config"
+        package_cache_values_file_write ".packages.${PACKAGE_IPATH}.postgresql.primary.extendedConfigmap" "${K8S_PACKAGE_NAME}-extended-config"
 
-        k8s_configmap_create_from_file "${K8S_PACKAGE_NAMESPACE}" "${PACKAGE_NAME}-extended-config" "override.conf" "${PACKAGE_DIR}/files/config/extended-config.txt"
+        k8s_configmap_create_from_file "${K8S_PACKAGE_NAMESPACE}" "${K8S_PACKAGE_NAME}-extended-config" "override.conf" "${PACKAGE_DIR}/files/config/extended-config.txt"
+    else
+        # TODO: Use Crossplane to provision a database if a local one is not used
+        :
     fi
 }
 

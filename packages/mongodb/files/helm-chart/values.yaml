@@ -1,5 +1,6 @@
 packages:
   mongodb:
+    bitnamiLegacy: false
     image:
       registry:
       repository:
